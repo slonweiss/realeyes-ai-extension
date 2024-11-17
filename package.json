@@ -1,0 +1,29 @@
+{
+  "name": "chrome-gmail-poc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "background.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "build": "webpack --mode production",
+    "dev": "webpack --mode development --watch",
+    "clean": "rimraf dist",
+    "rebuild": "npm run clean && npm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/chrome": "^0.0.277",
+    "copy-webpack-plugin": "^12.0.2",
+    "rimraf": "^5.0.10",
+    "webpack": "^5.95.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "crypto-browserify": "^3.12.0",
+    "jose": "^5.9.4",
+    "stream-browserify": "^3.0.0"
+  }
+}
