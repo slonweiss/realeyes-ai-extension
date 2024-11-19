@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Social Media Overlay Settings</title>
+    <style>
+      body {
+        width: 250px;
+        padding: 15px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+        transition: background-color 0.3s, color 0.3s;
+      }
+      h2,
+      h3 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-size: 16px;
+      }
+      .toggle-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+      }
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.4s;
+        border-radius: 24px;
+      }
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+      }
+      input:checked + .slider {
+        background-color: #2196f3;
+      }
+      input:checked + .slider:before {
+        transform: translateX(26px);
+      }
+      #save,
+      #login {
+        width: 100%;
+        padding: 10px;
+        margin: 15px auto 0;
+        display: block;
+        background-color: #2196f3;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s, color 0.3s;
+        font-size: 14px;
+        margin-top: 10px;
+      }
+      #save:hover,
+      #login:hover {
+        background-color: #0d8bf2;
+      }
+      #save.success {
+        background-color: #4caf50;
+      }
+      #save.failure {
+        background-color: #f44336;
+      }
+      #loginContainer,
+      #settingsContainer {
+        display: none;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #333;
+          color: #fff;
+        }
+        .slider {
+          background-color: #555;
+        }
+        input:checked + .slider {
+          background-color: #3949ab; /* Slightly lighter blue for dark mode */
+        }
+        #save {
+          background-color: #1976d2; /* Darker blue for dark mode */
+        }
+        #save:hover {
+          background-color: #2196f3; /* Lighter blue on hover for dark mode */
+        }
+        #save.success {
+          background-color: #43a047; /* Slightly darker green for dark mode */
+        }
+        #save.failure {
+          background-color: #c62828; /* Slightly darker red for dark mode */
+        }
+      }
+
+      /* Add these new styles */
+      .disabled-section {
+        opacity: 0.5;
+        pointer-events: none;
+      }
+      .disabled-section .switch {
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loginContainer">
+      <h2>RealEyes.ai</h2>
+      <p>Please log in to use the extension.</p>
+      <button id="login">Log In</button>
+    </div>
+    <div id="settingsContainer">
+      <h2>Social Media Overlay Settings</h2>
+      <div class="toggle-container">
+        <span>Enable Overlay</span>
+        <label class="switch">
+          <input type="checkbox" id="enableOverlay" />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div id="settingsContent">
+        <h3>Enable for:</h3>
+        <div class="toggle-container">
+          <span>Facebook</span>
+          <label class="switch">
+            <input type="checkbox" id="facebook" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-container">
+          <span>Twitter</span>
+          <label class="switch">
+            <input type="checkbox" id="twitter" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-container">
+          <span>Instagram</span>
+          <label class="switch">
+            <input type="checkbox" id="instagram" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-container">
+          <span>LinkedIn</span>
+          <label class="switch">
+            <input type="checkbox" id="linkedin" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-container">
+          <span>Reddit</span>
+          <label class="switch">
+            <input type="checkbox" id="reddit" />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <button id="save">Save Settings</button>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>

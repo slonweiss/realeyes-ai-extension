@@ -1,0 +1,2 @@
+console.log("Website content script loaded"),"/upload-image"===window.location.pathname&&(console.log("On upload-image page, notifying background script"),chrome.runtime.sendMessage({action:"pageLoaded"}),window.addEventListener("load",(()=>{chrome.runtime.sendMessage({action:"getAuthToken"},(e=>{e.success?(console.log("Auth token successfully retrieved and stored"),window.close()):console.log("Failed to retrieve auth token")}))})));
+//# sourceMappingURL=website-content.js.map

@@ -473,7 +473,6 @@
               mimeType,
               filename,
               size: uint8Array.length,
-              sample: Array.from(uint8Array.slice(0, 16)),
               sha256Hash: hashHex,
               origin: window.location.origin, // Add this line
             },
