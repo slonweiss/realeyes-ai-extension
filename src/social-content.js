@@ -426,8 +426,42 @@
       popup.remove();
     };
 
-    // Add cleanup to buttons
-    popup.querySelector(".confirm-btn")?.addEventListener("click", cleanup);
+    // Update the confirm button click handler
+    popup
+      .querySelector(".confirm-btn")
+      ?.addEventListener("click", async (e) => {
+        e.preventDefault(); // Prevent any default behavior
+
+        // Get the state of the checkbox
+        const storeDataCheckbox = popup.querySelector("#storeImageData");
+        const storeData = storeDataCheckbox ? storeDataCheckbox.checked : false;
+
+        // Clear all existing consent UI elements first
+        const consentMessage = popup.querySelector(".consent-message");
+        const buttonsContainer = popup.querySelector(".consent-buttons");
+        const optionsContainer = popup.querySelector(".consent-options");
+
+        if (consentMessage) consentMessage.remove();
+        if (buttonsContainer) buttonsContainer.remove();
+        if (optionsContainer) optionsContainer.remove();
+
+        // Create and show loading indicator
+        const loadingIndicator = document.createElement("div");
+        loadingIndicator.className = "loading-indicator";
+        loadingIndicator.innerHTML = "Analyzing...";
+        popup.appendChild(loadingIndicator);
+
+        // Create results container
+        const analysisResults = document.createElement("div");
+        analysisResults.className = "analysis-results";
+        analysisResults.style.display = "none";
+        popup.appendChild(analysisResults);
+
+        // Send image for analysis
+        await sendImageForAnalysis(imageUrl, popup, storeData);
+      });
+
+    // Only add cleanup to cancel button
     popup.querySelector(".cancel-btn")?.addEventListener("click", cleanup);
 
     return popup;
@@ -514,33 +548,65 @@
       });
   }
 
+  // Simplify displayAnalysisResults since UI cleanup is handled earlier
   function displayAnalysisResults(popup, results, status) {
     const loadingIndicator = popup.querySelector(".loading-indicator");
     const analysisResults = popup.querySelector(".analysis-results");
 
-    loadingIndicator.style.display = "none";
+    if (loadingIndicator) loadingIndicator.remove();
+
+    if (!analysisResults) {
+      console.error("Analysis results container not found");
+      return;
+    }
+
     analysisResults.style.display = "block";
 
     if (status === "error") {
-      analysisResults.innerHTML = `<p class="error">${results}</p>`;
+      analysisResults.innerHTML = `
+        <div class="error-container">
+          <p class="error">${results}</p>
+          <button class="close-btn">Close</button>
+        </div>
+      `;
     } else {
-      // Extract and format SageMaker analysis
       const analysis = results.sageMakerAnalysis;
+      console.log("Analysis results:", analysis);
+
       if (analysis) {
-        const probability = (analysis.probability * 100).toFixed(1);
+        const probability = (analysis.probability * 100).toFixed(4);
         const isFakeText = analysis.isFake
           ? "Likely AI Generated"
           : "Likely Real";
+        const confidence = analysis.isFake
+          ? probability
+          : (100 - probability).toFixed(4);
 
         analysisResults.innerHTML = `
           <div class="analysis-summary">
             <h3>${isFakeText}</h3>
-            <p>Confidence: ${probability}%</p>
+            <p>Confidence: ${confidence}%</p>
+            <p>Raw probability: ${probability}%</p>
+            <p>Logit: ${analysis.logit}</p>
+            <button class="close-btn">Close</button>
           </div>
         `;
       } else {
-        analysisResults.innerHTML = `<p class="error">No analysis results available</p>`;
+        analysisResults.innerHTML = `
+          <div class="error-container">
+            <p class="error">No analysis results available</p>
+            <button class="close-btn">Close</button>
+          </div>
+        `;
       }
+    }
+
+    // Add click handler for the close button
+    const closeBtn = analysisResults.querySelector(".close-btn");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        popup.remove();
+      });
     }
   }
 
