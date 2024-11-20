@@ -198,3 +198,107 @@
 .analysis-results {
   color: #333333 !important;
 }
+
+.prediction-results {
+  text-align: center;
+  display: none;
+  margin-top: 5px;
+  padding: 20px;
+  background-color: white;
+  border-radius: 12px;
+  width: 100%;
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+}
+
+.probability-circle {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  margin: 0 auto;
+}
+
+.probability-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.probability-value {
+  font-size: 28px;
+  font-weight: 500;
+}
+
+.probability-label {
+  font-size: 14px;
+  color: #333;
+}
+
+.confidence-indicators {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  gap: 20px;
+}
+
+.indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.indicator-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.indicator-label {
+  font-size: 14px;
+}
+
+.real {
+  color: #28a745;
+}
+.uncertain {
+  color: #ffc107;
+}
+.fake {
+  color: #dc3545;
+}
+
+.real .indicator-dot {
+  background-color: #28a745;
+}
+.uncertain .indicator-dot {
+  background-color: #ffc107;
+}
+.fake .indicator-dot {
+  background-color: #dc3545;
+}
+
+.close-btn {
+  background-color: #e0e0e0;
+  color: #333333;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  margin: 0 auto !important;
+  display: inline-block !important;
+}
+
+.close-btn:hover {
+  background-color: #d5d5d5;
+}
+
+#predictionResults {
+  text-align: center !important;
+  width: 100% !important;
+}

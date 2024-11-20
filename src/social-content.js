@@ -430,34 +430,15 @@
     popup
       .querySelector(".confirm-btn")
       ?.addEventListener("click", async (e) => {
-        e.preventDefault(); // Prevent any default behavior
+        e.preventDefault();
 
-        // Get the state of the checkbox
         const storeDataCheckbox = popup.querySelector("#storeImageData");
         const storeData = storeDataCheckbox ? storeDataCheckbox.checked : false;
 
-        // Clear all existing consent UI elements first
-        const consentMessage = popup.querySelector(".consent-message");
-        const buttonsContainer = popup.querySelector(".consent-buttons");
-        const optionsContainer = popup.querySelector(".consent-options");
+        // Remove ALL existing content from popup
+        popup.innerHTML = '<div class="loading-indicator">Analyzing...</div>';
 
-        if (consentMessage) consentMessage.remove();
-        if (buttonsContainer) buttonsContainer.remove();
-        if (optionsContainer) optionsContainer.remove();
-
-        // Create and show loading indicator
-        const loadingIndicator = document.createElement("div");
-        loadingIndicator.className = "loading-indicator";
-        loadingIndicator.innerHTML = "Analyzing...";
-        popup.appendChild(loadingIndicator);
-
-        // Create results container
-        const analysisResults = document.createElement("div");
-        analysisResults.className = "analysis-results";
-        analysisResults.style.display = "none";
-        popup.appendChild(analysisResults);
-
-        // Send image for analysis
+        // Send image for analysis using the existing popup
         await sendImageForAnalysis(imageUrl, popup, storeData);
       });
 
@@ -550,20 +531,11 @@
 
   // Simplify displayAnalysisResults since UI cleanup is handled earlier
   function displayAnalysisResults(popup, results, status) {
-    const loadingIndicator = popup.querySelector(".loading-indicator");
-    const analysisResults = popup.querySelector(".analysis-results");
-
-    if (loadingIndicator) loadingIndicator.remove();
-
-    if (!analysisResults) {
-      console.error("Analysis results container not found");
-      return;
-    }
-
-    analysisResults.style.display = "block";
+    // Clear any existing content
+    popup.innerHTML = "";
 
     if (status === "error") {
-      analysisResults.innerHTML = `
+      popup.innerHTML = `
         <div class="error-container">
           <p class="error">${results}</p>
           <button class="close-btn">Close</button>
@@ -574,25 +546,87 @@
       console.log("Analysis results:", analysis);
 
       if (analysis) {
-        const probability = (analysis.probability * 100).toFixed(4);
-        const isFakeText = analysis.isFake
-          ? "Likely AI Generated"
-          : "Likely Real";
-        const confidence = analysis.isFake
-          ? probability
-          : (100 - probability).toFixed(4);
+        const probability = (analysis.probability * 100).toFixed(1);
+        const isFake = analysis.isFake;
 
-        analysisResults.innerHTML = `
-          <div class="analysis-summary">
-            <h3>${isFakeText}</h3>
-            <p>Confidence: ${confidence}%</p>
-            <p>Raw probability: ${probability}%</p>
-            <p>Logit: ${analysis.logit}</p>
-            <button class="close-btn">Close</button>
+        // Determine color based on probability
+        let confidenceColor;
+        if (probability < 33) {
+          confidenceColor = "#28a745";
+        } else if (probability < 66) {
+          confidenceColor = "#ffc107";
+        } else {
+          confidenceColor = "#dc3545";
+        }
+
+        popup.innerHTML = `
+          <div id="predictionResults">
+            <div style="
+              font-size: 18px; 
+              color: ${confidenceColor}; 
+              font-weight: 500; 
+              margin-bottom: 10px;
+              text-align: center; 
+            ">
+              ${isFake ? "Likely AI Generated" : "Likely Real"}
+            </div>
+
+            <div class="probability-circle">
+              <svg width="150" height="150" viewBox="0 0 150 150">
+                <circle
+                  cx="75"
+                  cy="75"
+                  r="70"
+                  stroke="#E6E6E6"
+                  stroke-width="10"
+                  fill="none"
+                />
+                <circle
+                  cx="75"
+                  cy="75"
+                  r="70"
+                  stroke="${confidenceColor}"
+                  stroke-width="10"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-dasharray="439.82"
+                  stroke-dashoffset="${439.82 * (1 - probability / 100)}"
+                  transform="rotate(-90 75 75)"
+                  style="transition: stroke-dashoffset 1s"
+                />
+              </svg>
+              <div class="probability-text">
+                <div class="probability-value" style="color: ${confidenceColor}">${probability}%</div>
+                <div class="probability-label">Deepfake Probability</div>
+              </div>
+            </div>
+
+            <div class="confidence-indicators">
+              <div class="indicator real">
+                <div class="indicator-dot"></div>
+                <div class="indicator-label">Likely Real</div>
+              </div>
+              <div class="indicator uncertain">
+                <div class="indicator-dot"></div>
+                <div class="indicator-label">Uncertain</div>
+              </div>
+              <div class="indicator fake">
+                <div class="indicator-dot"></div>
+                <div class="indicator-label">Likely Fake</div>
+              </div>
+            </div>
+
+            <div style="
+              width: 100%;
+              text-align: center; 
+              margin-top: 20px;
+            ">
+              <button class="close-btn">Close</button>
+            </div>
           </div>
         `;
       } else {
-        analysisResults.innerHTML = `
+        popup.innerHTML = `
           <div class="error-container">
             <p class="error">No analysis results available</p>
             <button class="close-btn">Close</button>
@@ -602,7 +636,7 @@
     }
 
     // Add click handler for the close button
-    const closeBtn = analysisResults.querySelector(".close-btn");
+    const closeBtn = popup.querySelector(".close-btn");
     if (closeBtn) {
       closeBtn.addEventListener("click", () => {
         popup.remove();
