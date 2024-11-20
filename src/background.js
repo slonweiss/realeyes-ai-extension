@@ -20,7 +20,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === "sendImage") {
-    const { url, mimeType, filename, size, sha256Hash, origin } =
+    const { url, mimeType, filename, size, sha256Hash, origin, storeData } =
       request.imageData;
 
     // Create formData here
@@ -40,6 +40,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           formData.append("size", size.toString());
           formData.append("sha256Hash", sha256Hash);
           formData.append("origin", origin);
+          formData.append("storeData", storeData.toString());
 
           return formData;
         });

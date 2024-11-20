@@ -17,6 +17,10 @@ import imghash from "imghash";
 import sharp from "sharp";
 import ExifReader from "exif-reader";
 import * as c2pa from "c2pa";
+import {
+  SageMakerRuntimeClient,
+  InvokeEndpointCommand,
+} from "@aws-sdk/client-sagemaker-runtime";
 
 // Use environment variables
 const s3BucketName = process.env.S3_BUCKET;
@@ -29,6 +33,8 @@ const s3Client = new S3Client({
 });
 
 const dynamoDBClient = new DynamoDBClient({ region: awsRegion });
+
+const sageMakerClient = new SageMakerRuntimeClient({ region: awsRegion });
 
 const allowedOrigins = [
   "https://www.linkedin.com",
@@ -196,8 +202,64 @@ async function extractAllMetadata(buffer) {
   return metadata;
 }
 
+const invokeSageMaker = async (imageBuffer) => {
+  try {
+    console.log(
+      "SageMaker Endpoint Name:",
+      process.env.SAGEMAKER_ENDPOINT_NAME
+    );
+
+    if (!process.env.SAGEMAKER_ENDPOINT_NAME) {
+      throw new Error(
+        "SAGEMAKER_ENDPOINT_NAME environment variable is not set"
+      );
+    }
+
+    // Convert buffer to base64
+    const base64Image = imageBuffer.toString("base64");
+
+    const command = new InvokeEndpointCommand({
+      EndpointName: process.env.SAGEMAKER_ENDPOINT_NAME,
+      ContentType: "application/json",
+      Body: JSON.stringify({ image: base64Image }),
+    });
+
+    const response = await sageMakerClient.send(command);
+    const result = JSON.parse(Buffer.from(response.Body).toString("utf8"));
+
+    return {
+      logit: result.logit,
+      probability: result.probability,
+      isFake: result.is_fake,
+    };
+  } catch (error) {
+    console.error("SageMaker Configuration:", {
+      endpointName: process.env.SAGEMAKER_ENDPOINT_NAME,
+      region: process.env.AWS_REGION,
+    });
+    console.error("Error invoking SageMaker endpoint:", error);
+    throw error;
+  }
+};
+
 export const handler = async (event) => {
-  console.log("Received event:", JSON.stringify(event, null, 2));
+  console.log(
+    "Received event:",
+    JSON.stringify(
+      {
+        ...event,
+        body: event.isBase64Encoded
+          ? "[Base64 body truncated]"
+          : "[Body truncated]",
+        // Include other relevant event properties you want to log
+        httpMethod: event.httpMethod,
+        headers: event.headers,
+        queryStringParameters: event.queryStringParameters,
+      },
+      null,
+      2
+    )
+  );
 
   const origin = event.headers["Origin"] || event.headers["origin"];
   const allowOrigin = allowedOrigins.includes(origin)
@@ -222,12 +284,7 @@ export const handler = async (event) => {
     };
   }
 
-  // Decode the body if it's base64-encoded
-  if (event.isBase64Encoded) {
-    event.body = Buffer.from(event.body, "base64").toString("binary");
-  }
-
-  let allMetadata = {}; // Move this declaration here
+  let allMetadata = {};
 
   try {
     const contentType =
@@ -245,48 +302,64 @@ export const handler = async (event) => {
       };
     }
 
-    // Parse the multipart form data
-    const result = await parse(event);
+    // Decode the base64 body if necessary
+    const decodedBody = event.isBase64Encoded
+      ? Buffer.from(event.body, "base64").toString("binary")
+      : event.body;
 
-    // Add this after parsing the multipart form data
-    console.log("Received form fields:");
-    if (result.fields) {
-      for (const [key, value] of Object.entries(result.fields)) {
-        console.log(`${key}: ${value}`);
-      }
-    } else {
-      console.log("No form fields received");
-    }
+    console.log("Is base64 encoded:", event.isBase64Encoded);
+    console.log("First 100 characters of body:", decodedBody.slice(0, 100));
 
-    if (!result.files || result.files.length === 0) {
+    // Parse the multipart form data using the decoded body
+    console.log("Parsing multipart form data...");
+    const result = await parse({
+      ...event,
+      body: decodedBody,
+      isBase64Encoded: false, // Since we've already decoded it
+    });
+
+    console.log(
+      "Parse result:",
+      JSON.stringify(
+        {
+          ...result,
+          files: result.files?.map((file) => ({
+            ...file,
+            content: "[File content truncated]",
+          })),
+          fields: result.fields,
+        },
+        null,
+        2
+      )
+    );
+
+    const { files, fields } = result;
+
+    // The URL is at the top level of the result, not in fields
+    const url = result.url || "";
+
+    console.log("URL from result:", result.url);
+    console.log("Processed URL value:", url);
+
+    if (!files || files.length === 0) {
       throw new Error("No files found in the request");
     }
 
-    const file = result.files[0];
-    let fileData = file.content;
+    const file = files[0];
+    let fileData = Buffer.isBuffer(file.content)
+      ? file.content
+      : Buffer.from(file.content, "binary");
     const fileName = file.filename;
     const mimeType = file.contentType;
-    const url = file.url;
+    console.log("URL from fields:", fields?.url);
+    console.log("Processed URL value:", url);
 
     console.log(`File received: ${fileName}`);
     console.log(`File size: ${fileData.length} bytes`);
     console.log(`Content-Type: ${mimeType}`);
     console.log(`First 16 bytes: ${fileData.slice(0, 16).toString("hex")}`);
-
-    // Ensure fileData is a Buffer
-    console.log(`Type of fileData: ${typeof fileData}`);
-    console.log(`Is fileData a Buffer: ${Buffer.isBuffer(fileData)}`);
-    if (!Buffer.isBuffer(fileData)) {
-      fileData = Buffer.from(fileData, "binary");
-    }
-
-    // Log file data after ensuring it's a Buffer
-    console.log(`File size after Buffer check: ${fileData.length} bytes`);
-    console.log(
-      `First 16 bytes after Buffer check: ${fileData
-        .slice(0, 16)
-        .toString("hex")}`
-    );
+    console.log(`URL: ${url}`);
 
     // Calculate both hashes
     const sha256Hash = crypto
@@ -301,7 +374,9 @@ export const handler = async (event) => {
     // Extract metadata
     allMetadata = await extractAllMetadata(fileData);
 
-    console.log("Extracted metadata:", allMetadata);
+    // Add SageMaker analysis
+    const sageMakerResult = await invokeSageMaker(fileData);
+    console.log("SageMaker analysis result:", sageMakerResult);
 
     // Check for exact duplicate only
     const exactDuplicate = await dynamoDBClient.send(
@@ -354,10 +429,24 @@ export const handler = async (event) => {
         body: JSON.stringify({
           message: "File already exists",
           imageHash: sha256Hash,
-          pHash: pHash,
+          pHash: updatedItem.PHash.S,
           s3ObjectUrl: updatedItem.s3ObjectUrl.S,
+          originalFileName: updatedItem.originalFileName.S,
           originWebsites: updatedItem.originWebsites.SS,
           requestCount: parseInt(updatedItem.requestCount.N),
+          imageOriginUrl: updatedItem.originalUrl.S,
+          fileExtension: updatedItem.fileExtension.S,
+          extensionSource: updatedItem.extensionSource.S,
+          uploadDate: updatedItem.uploadDate.S,
+          fileSize: parseInt(updatedItem.fileSize.N),
+          allMetadata: JSON.parse(updatedItem.allMetadata.S),
+          sageMakerAnalysis: {
+            logit: parseFloat(updatedItem.sageMakerAnalysisCorvi23.M.logit.N),
+            probability: parseFloat(
+              updatedItem.sageMakerAnalysisCorvi23.M.probability.N
+            ),
+            isFake: updatedItem.sageMakerAnalysisCorvi23.M.isFake.BOOL,
+          },
         }),
       };
     } else {
@@ -430,6 +519,13 @@ export const handler = async (event) => {
         extensionSource: { S: extensionSource },
         fileSize: { N: fileData.length.toString() },
         allMetadata: { S: JSON.stringify(allMetadata) },
+        sageMakerAnalysisCorvi23: {
+          M: {
+            logit: { N: sageMakerResult.logit.toString() },
+            probability: { N: sageMakerResult.probability.toString() },
+            isFake: { BOOL: sageMakerResult.isFake },
+          },
+        },
       };
 
       // Only add originWebsites if it's not empty
@@ -479,6 +575,7 @@ export const handler = async (event) => {
           imageOriginUrl: url,
           fileExtension: fileExtension,
           extensionSource: extensionSource,
+          sageMakerAnalysis: sageMakerResult,
         }),
       };
     }

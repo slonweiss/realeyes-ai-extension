@@ -315,118 +315,126 @@
     });
   }
 
+  // Add this helper function for debugging
+  function debugLog(message, ...args) {
+    console.log(`[RealEyes Debug] ${message}`, ...args);
+  }
+
   // Show consent popup before sending image for analysis
   function showConsentPopup(target, imageUrl) {
-    const existingPopups = document.querySelectorAll(".consent-popup");
-    existingPopups.forEach((popup) => {
-      popup.remove();
-    });
+    debugLog("Showing consent popup for target:", target);
+
+    // Check if there's already a popup for this image
+    const existingPopup = document.querySelector(
+      `.consent-popup[data-for-image="${imageUrl}"]`
+    );
+    if (existingPopup) {
+      return existingPopup;
+    }
+
+    // Remove any other popups
+    const existingPopups = document.querySelectorAll(
+      ".consent-popup:not([data-for-image='" + imageUrl + "'])"
+    );
+    existingPopups.forEach((popup) => popup.remove());
 
     const popup = document.createElement("div");
     popup.className = "consent-popup";
+    popup.setAttribute("data-for-image", imageUrl);
+
+    // Add popup content
     popup.innerHTML = `
-      <p class="consent-message">Do you want to send this image for analysis?</p>
+      <p class="consent-message">Send Image for Analysis?</p>
       <div class="consent-buttons">
         <button class="confirm-btn">Analyze Image</button>
         <button class="cancel-btn">Cancel</button>
       </div>
-      <div class="loading-indicator" style="display: none;">
-        <div class="spinner"></div>
-        <p>Analyzing image...</p>
+      <div class="consent-options">
+        <label class="store-data-option">
+          <input type="checkbox" class="store-data-checkbox" id="storeImageData" checked>
+          <span>Allow storing image data for research and model improvement</span>
+        </label>
       </div>
-      <div class="analysis-results" style="display: none;"></div>
     `;
-
-    popup.style.position = "fixed";
-    popup.style.zIndex = "2147483647";
 
     document.body.appendChild(popup);
 
+    // Create an Intersection Observer for the target (overlay icon)
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Show popup when target is visible
+            popup.style.display = "flex";
+            updatePopupPosition();
+          } else {
+            // Hide popup when target is not visible
+            popup.style.display = "none";
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(target);
+
+    // Position the popup relative to the icon overlay
     const updatePopupPosition = () => {
-      const rect = target.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const popupHeight = popup.offsetHeight;
-      const popupWidth = popup.offsetWidth;
+      if (popup.style.display === "none") return;
 
-      const isInView =
-        rect.top < viewportHeight &&
-        rect.bottom > 0 &&
-        rect.left < viewportWidth &&
-        rect.right > 0;
+      const overlayRect = target.getBoundingClientRect();
+      debugLog("Overlay rect:", overlayRect);
 
-      if (!isInView) {
-        popup.style.display = "none";
-        return;
+      // Calculate position relative to the overlay icon
+      let left = overlayRect.right + window.pageXOffset + 10;
+      let top = overlayRect.top + window.pageYOffset;
+
+      // If popup would go off-screen to the right, position it to the left
+      if (
+        left + popup.offsetWidth >
+        window.innerWidth - 10 + window.pageXOffset
+      ) {
+        left = overlayRect.left + window.pageXOffset - popup.offsetWidth - 10;
       }
 
-      popup.style.display = "block";
+      // Ensure popup stays within viewport bounds vertically
+      const maxTop =
+        window.innerHeight + window.pageYOffset - popup.offsetHeight - 10;
+      top = Math.max(10 + window.pageYOffset, Math.min(top, maxTop));
 
-      let top, left;
+      debugLog("Setting popup position:", { left, top });
 
-      if (rect.bottom + popupHeight + 10 <= viewportHeight) {
-        top = rect.bottom + 10;
-      } else if (rect.top - popupHeight - 10 >= 0) {
-        top = rect.top - popupHeight - 10;
-      } else {
-        top = Math.max(
-          10,
-          Math.min(rect.top, viewportHeight - popupHeight - 10)
-        );
-      }
-
-      left = Math.max(10, Math.min(rect.left, viewportWidth - popupWidth - 10));
-
-      popup.style.top = `${top}px`;
+      popup.style.position = "absolute";
       popup.style.left = `${left}px`;
-    };
-    updatePopupPosition();
-
-    const updateHandler = () => {
-      updatePopupPosition();
-    };
-    window.addEventListener("scroll", updateHandler, { passive: true });
-    window.addEventListener("resize", updateHandler, { passive: true });
-
-    const confirmBtn = popup.querySelector(".confirm-btn");
-    const cancelBtn = popup.querySelector(".cancel-btn");
-    const loadingIndicator = popup.querySelector(".loading-indicator");
-    const analysisResults = popup.querySelector(".analysis-results");
-    const consentMessage = popup.querySelector(".consent-message");
-
-    const handleConfirm = () => {
-      consentMessage.style.display = "none";
-      popup.querySelector(".consent-buttons").style.display = "none";
-      loadingIndicator.style.display = "block";
-      sendImageForAnalysis(imageUrl, popup);
+      popup.style.top = `${top}px`;
     };
 
-    const handleCancel = (e) => {
-      removePopup();
-    };
+    // Initial positioning
+    setTimeout(updatePopupPosition, 0);
 
-    const handleOutsideClick = (e) => {
-      if (!popup.contains(e.target) && e.target !== target) {
-        removePopup();
-      }
-    };
+    // Update position on window resize and scroll
+    const debouncedUpdate = debounce(updatePopupPosition, 100);
+    window.addEventListener("resize", debouncedUpdate);
+    window.addEventListener("scroll", debouncedUpdate);
 
-    const removePopup = () => {
+    // Enhanced cleanup function
+    const cleanup = () => {
+      debugLog("Cleaning up popup");
+      window.removeEventListener("resize", debouncedUpdate);
+      window.removeEventListener("scroll", debouncedUpdate);
+      observer.disconnect();
       popup.remove();
-      confirmBtn.removeEventListener("click", handleConfirm);
-      cancelBtn.removeEventListener("click", handleCancel);
-      document.removeEventListener("click", handleOutsideClick);
-      window.removeEventListener("scroll", updateHandler);
-      window.removeEventListener("resize", updateHandler);
     };
 
-    confirmBtn.addEventListener("click", handleConfirm);
-    cancelBtn.addEventListener("click", handleCancel);
-    document.addEventListener("click", handleOutsideClick);
+    // Add cleanup to buttons
+    popup.querySelector(".confirm-btn")?.addEventListener("click", cleanup);
+    popup.querySelector(".cancel-btn")?.addEventListener("click", cleanup);
+
+    return popup;
   }
 
   // Send image data for analysis
-  function sendImageForAnalysis(url, popup) {
+  function sendImageForAnalysis(url, popup, storeData) {
     let filename = url.split("/").pop().split("?")[0];
     let mimeType = "image/jpeg"; // Default to JPEG for Twitter images
 
@@ -444,6 +452,7 @@
     console.log(`Sending image for analysis: ${filename}`);
     console.log(`MIME type: ${mimeType}`);
     console.log(`Image URL: ${url}`);
+    console.log(`Store image data: ${storeData}`);
 
     fetch(url)
       .then((response) => {
@@ -474,7 +483,8 @@
               filename,
               size: uint8Array.length,
               sha256Hash: hashHex,
-              origin: window.location.origin, // Add this line
+              origin: window.location.origin,
+              storeData: storeData, // Add the storage consent flag
             },
           },
           (response) => {
@@ -514,27 +524,23 @@
     if (status === "error") {
       analysisResults.innerHTML = `<p class="error">${results}</p>`;
     } else {
-      // Create a table with the results
-      let tableRows = "";
-      for (const [key, value] of Object.entries(results)) {
-        tableRows += `
-          <tr>
-            <td>${key}</td>
-            <td>${
-              typeof value === "object" ? JSON.stringify(value) : value
-            }</td>
-          </tr>
-        `;
-      }
+      // Extract and format SageMaker analysis
+      const analysis = results.sageMakerAnalysis;
+      if (analysis) {
+        const probability = (analysis.probability * 100).toFixed(1);
+        const isFakeText = analysis.isFake
+          ? "Likely AI Generated"
+          : "Likely Real";
 
-      analysisResults.innerHTML = `
-        <h3>Analysis Results</h3>
-        <table class="results-table">
-          <tbody>
-            ${tableRows}
-          </tbody>
-        </table>
-      `;
+        analysisResults.innerHTML = `
+          <div class="analysis-summary">
+            <h3>${isFakeText}</h3>
+            <p>Confidence: ${probability}%</p>
+          </div>
+        `;
+      } else {
+        analysisResults.innerHTML = `<p class="error">No analysis results available</p>`;
+      }
     }
   }
 
@@ -899,27 +905,34 @@
 
   // Create image overlay
   function createImageOverlay(imageElement) {
+    debugLog("Creating overlay for image:", imageElement);
+
+    let wrapper = imageElement.closest(".image-wrapper");
+    if (!wrapper) {
+      wrapper = document.createElement("div");
+      wrapper.className = "image-wrapper";
+      imageElement.parentNode.insertBefore(wrapper, imageElement);
+      wrapper.appendChild(imageElement);
+    }
+
     const overlay = document.createElement("div");
     overlay.className = "image-overlay";
+    overlay.setAttribute("data-for-image", imageElement.src); // Store the image URL
+    wrapper.appendChild(overlay);
 
-    let isOpen = false;
+    // Add click handler for the overlay
+    overlay.addEventListener(
+      "click",
+      (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        debugLog("Overlay clicked, showing popup");
+        showConsentPopup(overlay, imageElement.src);
+      },
+      true
+    );
 
-    overlay.addEventListener("click", () => {
-      isOpen = !isOpen;
-      if (isOpen) {
-        const details = document.createElement("div");
-        details.className = "overlay-details";
-        details.textContent = "Image Details";
-        overlay.appendChild(details);
-      } else {
-        const details = overlay.querySelector(".overlay-details");
-        if (details) {
-          details.remove();
-        }
-      }
-    });
-
-    imageElement.parentElement.appendChild(overlay);
+    return overlay;
   }
 
   // Add overlay to image

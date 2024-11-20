@@ -1,0 +1,420 @@
+<!-- Centered container for form elements -->
+<div class="center-container">
+  <!-- Form and custom file button -->
+  <form id="imageUploadForm" enctype="multipart/form-data">
+    <div style="text-align: center; width: 100%">
+      <!-- Center container for "Choose File" and file name -->
+      <input
+        type="file"
+        id="imageFile"
+        name="imageFile"
+        accept="image/*"
+        style="display: none"
+        required
+      />
+      <!-- "Choose File" button -->
+      <button type="button" id="fileButton" style="margin-bottom: 10px">
+        Choose File
+      </button>
+      <!-- File name title below the "Choose File" button -->
+      <div id="fileNameContainer" style="margin-top: 5px">
+        <span id="fileName">No file chosen</span>
+      </div>
+    </div>
+    <!-- Preview container for the selected image, centered -->
+    <div
+      id="imagePreview"
+      style="
+        margin-top: 5px;
+        display: none;
+        text-align: center;
+        position: relative;
+      "
+    >
+      <img
+        id="previewImg"
+        src=""
+        alt="Image Preview"
+        style="
+          width: 300px;
+          height: 300px;
+          border: 1px solid #ddd;
+          padding: 10px;
+          object-fit: contain;
+        "
+      />
+      <!-- Small "X" Button for Image Removal -->
+      <button
+        id="removeButton"
+        style="
+          position: absolute;
+          top: -10px;
+          right: -10px;
+          background-color: #f8f9fa;
+          border: 1px solid #ccc;
+          border-radius: 50%;
+          width: 25px;
+          height: 25px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #666;
+          font-size: 16px;
+        "
+      >
+        &times;
+      </button>
+    </div>
+    <!-- Upload button container to center the button below the image -->
+    <div
+      id="uploadButtonContainer"
+      style="
+        display: none;
+        justify-content: center;
+        margin-top: 5px;
+        text-align: center;
+      "
+    >
+      <button type="button" id="uploadButton">Upload</button>
+    </div>
+  </form>
+  <div id="uploadStatus" style="text-align: center; margin-top: 5px"></div>
+  <!-- Prediction Results container with blue color theme -->
+  <div
+    id="predictionResults"
+    style="
+      text-align: center;
+      display: none;
+      margin-top: 5px;
+      padding-top: 5px;
+      background-color: white;
+      border-radius: 12px;
+      width: 60%;
+      padding: 20px;
+      border: 1px solid #ddd;
+    "
+  >
+    <!-- Temporary Message -->
+    <div style="font-size: 14px; color: #555; margin-bottom: 5px"></div>
+    <div
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 5px;
+      "
+    >
+      <!-- AI Generated Label -->
+      <!-- Classification Text -->
+    </div>
+    <!-- Circular Probability Indicator -->
+    <div
+      style="position: relative; width: 150px; height: 150px; margin: 0 auto"
+    >
+      <svg width="150" height="150" viewBox="0 0 150 150">
+        <!-- Background Circle -->
+        <circle
+          cx="75"
+          cy="75"
+          r="70"
+          stroke="#E6E6E6"
+          stroke-width="10"
+          fill="none"
+        />
+        <!-- Foreground Circle (Red Color) -->
+        <circle
+          cx="75"
+          cy="75"
+          r="70"
+          stroke="#DC3545"
+          stroke-width="10"
+          fill="none"
+          stroke-linecap="round"
+          stroke-dasharray="439.82"
+          stroke-dashoffset="0"
+          style="transition: stroke-dashoffset 1s"
+        />
+      </svg>
+      <div
+        style="
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          text-align: center;
+        "
+      >
+        <div style="font-size: 28px; color: #dc3545">100%</div>
+        <div style="font-size: 14px; color: #333">Deepfake Probability</div>
+      </div>
+    </div>
+    <!-- Confidence Indicator -->
+    <div
+      style="
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 20px;
+      "
+    >
+      <div
+        style="
+          background-color: #28a745;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          margin-right: 10px;
+        "
+      ></div>
+      <div style="margin-right: 20px; color: #28a745">Likely Real</div>
+      <div
+        style="
+          background-color: #ffc107;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          margin-right: 10px;
+        "
+      ></div>
+      <div style="margin-right: 20px; color: #ffc107">Uncertain</div>
+      <div
+        style="
+          background-color: #dc3545;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          margin-right: 10px;
+        "
+      ></div>
+      <div style="color: #dc3545">Likely Fake</div>
+    </div>
+    <!-- Styles for center alignment and buttons -->
+    <style>
+      .center-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: auto;
+        max-width: 100%;
+        height: auto;
+        padding: 20px 16px;
+        margin: 0 auto;
+        box-sizing: border-box;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      #fileButton,
+      #uploadButton {
+        background-color: #007bff;
+        color: white;
+        padding: 15px 30px;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        text-align: center;
+        transition: background-color 0.3s ease;
+        margin: 10px 0;
+      }
+      #fileButton:hover,
+      #uploadButton:hover {
+        background-color: #0056b3;
+      }
+      #fileName,
+      #uploadStatus {
+        font-size: 14px;
+      }
+      #previewImg {
+        width: 300px;
+        height: 300px;
+        border: 1px solid #ddd;
+        padding: 10px;
+        box-sizing: border-box;
+        object-fit: contain;
+      }
+      #uploadButtonContainer {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+      }
+      #removeButton:hover {
+        background-color: #e9ecef;
+      }
+    </style>
+    <script>
+      document
+        .getElementById("fileButton")
+        .addEventListener("click", function () {
+          const fileInput = document.getElementById("imageFile");
+          fileInput.click(); // Trigger the hidden file input
+        });
+      document
+        .getElementById("imageFile")
+        .addEventListener("change", function () {
+          const fileInput = document.getElementById("imageFile");
+          const fileName = document.getElementById("fileName");
+          const imagePreview = document.getElementById("imagePreview");
+          const previewImg = document.getElementById("previewImg");
+          const uploadButtonContainer = document.getElementById(
+            "uploadButtonContainer"
+          );
+          const removeButton = document.getElementById("removeButton");
+          if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            fileName.textContent = file.name;
+            const fileReader = new FileReader();
+            fileReader.onload = function (event) {
+              previewImg.src = event.target.result;
+              imagePreview.style.display = "block";
+              removeButton.style.display = "block";
+            };
+            fileReader.readAsDataURL(file);
+            uploadButtonContainer.style.display = "flex";
+          } else {
+            resetPreview();
+          }
+        });
+      document
+        .getElementById("removeButton")
+        .addEventListener("click", function () {
+          resetPreview();
+        });
+      // Function to reset the file input, preview, and prediction results
+      function resetPreview() {
+        const fileInput = document.getElementById("imageFile");
+        const fileName = document.getElementById("fileName");
+        const imagePreview = document.getElementById("imagePreview");
+        const previewImg = document.getElementById("previewImg");
+        const uploadButtonContainer = document.getElementById(
+          "uploadButtonContainer"
+        );
+        const removeButton = document.getElementById("removeButton");
+        const predictionDiv = document.getElementById("predictionResults");
+        const statusDiv = document.getElementById("uploadStatus");
+        fileInput.value = "";
+        fileName.textContent = "No file chosen";
+        imagePreview.style.display = "none";
+        previewImg.src = "";
+        uploadButtonContainer.style.display = "none";
+        removeButton.style.display = "none";
+        predictionDiv.style.display = "none";
+        statusDiv.innerHTML = ""; // Clear any status messages
+      }
+      document
+        .getElementById("uploadButton")
+        .addEventListener("click", function () {
+          const fileInput = document.getElementById("imageFile");
+          const statusDiv = document.getElementById("uploadStatus");
+          const predictionDiv = document.getElementById("predictionResults");
+
+          if (fileInput.files.length > 0) {
+            const formData = new FormData();
+            formData.append("image", fileInput.files[0]);
+            statusDiv.innerHTML = "Uploading...";
+
+            fetch("https://api.realeyes.ai/analyze-image", {
+              method: "POST",
+              body: formData,
+            })
+              .then((response) => {
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+              })
+              .then((data) => {
+                // More detailed logging of the response
+                console.log(
+                  "Full API Response:",
+                  JSON.stringify(data, null, 2)
+                );
+                console.log("SageMaker Analysis:", data.sageMakerAnalysis);
+
+                // Check if the response matches the expected format
+                if (!data) {
+                  throw new Error("No data received from API");
+                }
+
+                // Check if sageMakerAnalysis exists
+                if (!data.sageMakerAnalysis) {
+                  console.error("Missing sageMakerAnalysis in response:", data);
+                  throw new Error("Response missing sageMakerAnalysis data");
+                }
+
+                // Check if probability exists
+                if (typeof data.sageMakerAnalysis.probability === "undefined") {
+                  console.error(
+                    "Missing probability in sageMakerAnalysis:",
+                    data.sageMakerAnalysis
+                  );
+                  throw new Error("Response missing probability data");
+                }
+
+                statusDiv.innerHTML = "";
+                predictionDiv.style.display = "block";
+
+                // Calculate probability percentage
+                const probability = data.sageMakerAnalysis.probability * 100;
+                const probabilityFormatted = probability.toFixed(1);
+
+                console.log(
+                  "Calculated probability:",
+                  probabilityFormatted + "%"
+                );
+
+                // Update probability display
+                const probabilityDisplay = predictionDiv.querySelector(
+                  "div[style*='font-size: 28px']"
+                );
+                if (probabilityDisplay) {
+                  probabilityDisplay.textContent = `${probabilityFormatted}%`;
+                } else {
+                  console.error("Could not find probability display element");
+                }
+
+                // Update the circle progress
+                const circle = predictionDiv.querySelector(
+                  "circle:nth-child(2)"
+                );
+                if (circle) {
+                  const circumference = 2 * Math.PI * 70;
+                  const offset = circumference * (1 - probability / 100);
+                  circle.style.strokeDashoffset = offset;
+
+                  let confidenceColor;
+                  if (probability < 33) {
+                    confidenceColor = "#28a745";
+                  } else if (probability < 66) {
+                    confidenceColor = "#ffc107";
+                  } else {
+                    confidenceColor = "#dc3545";
+                  }
+
+                  circle.style.stroke = confidenceColor;
+                  if (probabilityDisplay) {
+                    probabilityDisplay.style.color = confidenceColor;
+                  }
+                }
+
+                document.getElementById("uploadButtonContainer").style.display =
+                  "none";
+              })
+              .catch((error) => {
+                console.error("Error details:", error);
+                console.error("Error stack:", error.stack);
+                statusDiv.innerHTML =
+                  "<p>Upload failed: " + error.message + "</p>";
+              });
+          } else {
+            statusDiv.innerHTML = "<p>No file selected for upload.</p>";
+          }
+        });
+    </script>
+  </div>
+</div>
