@@ -352,7 +352,7 @@
       <div class="consent-options">
         <label class="store-data-option">
           <input type="checkbox" class="store-data-checkbox" id="storeImageData" checked>
-          <span>Allow storing image data for research and model improvement</span>
+          <span>Allow storage of image for improved detection</span>
         </label>
       </div>
     `;
@@ -560,17 +560,6 @@
         }
 
         popup.innerHTML = `
-          <div id="predictionResults">
-            <div style="
-              font-size: 18px; 
-              color: ${confidenceColor}; 
-              font-weight: 500; 
-              margin-bottom: 10px;
-              text-align: center; 
-            ">
-              ${isFake ? "Likely AI Generated" : "Likely Real"}
-            </div>
-
             <div class="probability-circle">
               <svg width="150" height="150" viewBox="0 0 150 150">
                 <circle
@@ -612,7 +601,7 @@
               </div>
               <div class="indicator fake">
                 <div class="indicator-dot"></div>
-                <div class="indicator-label">Likely Fake</div>
+                <div class="indicator-label">Likely Deepfake</div>
               </div>
             </div>
 

@@ -25,7 +25,7 @@
       .switch {
         position: relative;
         display: inline-block;
-        width: 50px;
+        width: 56px;
         height: 24px;
       }
       .switch input {
@@ -44,6 +44,21 @@
         transition: 0.4s;
         border-radius: 24px;
       }
+      .slider:after {
+        content: "OFF";
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        color: #fff;
+      }
+      input:checked + .slider:after {
+        content: "ON";
+        left: 6px;
+        right: auto;
+        color: white;
+      }
       .slider:before {
         position: absolute;
         content: "";
@@ -54,6 +69,7 @@
         background-color: white;
         transition: 0.4s;
         border-radius: 50%;
+        z-index: 2;
       }
       input:checked + .slider {
         background-color: #2196f3;
@@ -133,7 +149,7 @@
       <button id="login">Log In</button>
     </div>
     <div id="settingsContainer">
-      <h2>Social Media Overlay Settings</h2>
+      <h2>Activate RealEyes Extension</h2>
       <div class="toggle-container">
         <span>Enable Overlay</span>
         <label class="switch">
@@ -142,7 +158,7 @@
         </label>
       </div>
       <div id="settingsContent">
-        <h3>Enable for:</h3>
+        <h3>Websites to Enable:</h3>
         <div class="toggle-container">
           <span>Facebook</span>
           <label class="switch">
