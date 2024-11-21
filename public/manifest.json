@@ -36,7 +36,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["icons/evil-eye.png"],
+      "resources": ["icons/realeyes-ai-icon.png"],
       "matches": [
         "https://*.linkedin.com/*",
         "https://*.instagram.com/*",
@@ -48,7 +48,7 @@
     }
   ],
   "icons": {
-    "48": "icons/evil-eye.png"
+    "48": "icons/realeyes-ai-icon.png"
   },
   "action": {
     "default_popup": "popup.html"

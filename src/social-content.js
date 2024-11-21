@@ -1,7 +1,5 @@
 (() => {
   // At the top of the file, add:
-  console.log("Social content script loaded");
-
   // Utility function to debounce frequent function calls
   function debounce(func, wait) {
     let timeout;
@@ -187,6 +185,9 @@
 
   // Add or update overlay on an image
   function addOrUpdateOverlayToImage(img, index) {
+    // Create a unique identifier for this image/overlay pair
+    const uniqueId = `overlay-${index}-${Date.now()}`;
+
     let overlay = document.querySelector(
       `.image-overlay[data-for-image="${img.src}"]`
     );
@@ -195,33 +196,52 @@
       overlay = document.createElement("div");
       overlay.className = "image-overlay";
       overlay.dataset.forImage = img.src;
+      overlay.dataset.overlayId = uniqueId; // Add unique identifier
       overlay.style.cssText = `
-        position: absolute;
-        width: 30px;
-        height: 30px;
-        background-color: rgba(255, 255, 255, 0.4);
-        border-radius: 50%;
-        cursor: pointer;
-        z-index: 2147483647;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        pointer-events: auto;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        opacity: 0.5;
-        transition: opacity 0.3s ease, background-color 0.3s ease, display 0.3s ease;
-      `;
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 2147483647;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            pointer-events: auto;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            opacity: 0.5;
+            transition: opacity 0.3s ease, background-color 0.3s ease, display 0.3s ease;
+        `;
       overlay.textContent = "🧿";
 
       overlay.onclick = (e) => {
         e.stopPropagation();
         e.preventDefault();
 
+        // First try to find popup by image src
+        let existingPopup = document.querySelector(
+          `.consent-popup[data-for-image="${img.src}"]`
+        );
+
+        // If not found, try to find by overlay ID
+        if (!existingPopup) {
+          existingPopup = document.querySelector(
+            `.consent-popup[data-overlay-id="${uniqueId}"]`
+          );
+        }
+
+        // If popup exists, remove it
+        if (existingPopup) {
+          existingPopup.remove();
+          return;
+        }
+
         const highestQualityUrl = getHighestQualityImageUrl(img);
 
         if (highestQualityUrl) {
-          showConsentPopup(overlay, highestQualityUrl);
+          showConsentPopup(overlay, highestQualityUrl, uniqueId);
         } else {
           showMessage("No suitable image found.", "error");
         }
@@ -315,46 +335,45 @@
     });
   }
 
-  // Add this helper function for debugging
-  function debugLog(message, ...args) {
-    console.log(`[RealEyes Debug] ${message}`, ...args);
-  }
-
   // Show consent popup before sending image for analysis
-  function showConsentPopup(target, imageUrl) {
-    debugLog("Showing consent popup for target:", target);
-
-    // Check if there's already a popup for this image
-    const existingPopup = document.querySelector(
+  function showConsentPopup(target, imageUrl, overlayId) {
+    // Check for existing popup using both image URL and overlay ID
+    let existingPopup = document.querySelector(
       `.consent-popup[data-for-image="${imageUrl}"]`
     );
+
+    if (!existingPopup) {
+      existingPopup = document.querySelector(
+        `.consent-popup[data-overlay-id="${overlayId}"]`
+      );
+    }
+
     if (existingPopup) {
       return existingPopup;
     }
 
     // Remove any other popups
-    const existingPopups = document.querySelectorAll(
-      ".consent-popup:not([data-for-image='" + imageUrl + "'])"
-    );
+    const existingPopups = document.querySelectorAll(".consent-popup");
     existingPopups.forEach((popup) => popup.remove());
 
     const popup = document.createElement("div");
     popup.className = "consent-popup";
     popup.setAttribute("data-for-image", imageUrl);
+    popup.setAttribute("data-overlay-id", overlayId); // Add overlay ID to popup
 
     // Add popup content
     popup.innerHTML = `
-      <p class="consent-message">Analyze this image?</p>
-      <div class="consent-buttons">
-        <button class="confirm-btn">Analyze Now</button>
-        <button class="cancel-btn">Skip</button>
-      </div>
-      <div class="consent-options">
-        <label class="store-data-option">
-          <input type="checkbox" class="store-data-checkbox" id="storeImageData" checked>
-          <span>Help us improve detection by storing this image</span>
-        </label>
-      </div>
+        <p class="consent-message">Analyze this image?</p>
+        <div class="consent-buttons">
+            <button class="confirm-btn">Analyze Now</button>
+            <button class="cancel-btn">Skip</button>
+        </div>
+        <div class="consent-options">
+            <label class="store-data-option">
+                <input type="checkbox" class="store-data-checkbox" id="storeImageData" checked>
+                <span>Help us improve detection by storing this image</span>
+            </label>
+        </div>
     `;
 
     document.body.appendChild(popup);
@@ -383,7 +402,6 @@
       if (popup.style.display === "none") return;
 
       const overlayRect = target.getBoundingClientRect();
-      debugLog("Overlay rect:", overlayRect);
 
       // Calculate position relative to the overlay icon
       let left = overlayRect.right + window.pageXOffset + 10;
@@ -402,8 +420,6 @@
         window.innerHeight + window.pageYOffset - popup.offsetHeight - 10;
       top = Math.max(10 + window.pageYOffset, Math.min(top, maxTop));
 
-      debugLog("Setting popup position:", { left, top });
-
       popup.style.position = "absolute";
       popup.style.left = `${left}px`;
       popup.style.top = `${top}px`;
@@ -419,7 +435,6 @@
 
     // Enhanced cleanup function
     const cleanup = () => {
-      debugLog("Cleaning up popup");
       window.removeEventListener("resize", debouncedUpdate);
       window.removeEventListener("scroll", debouncedUpdate);
       observer.disconnect();
@@ -464,11 +479,6 @@
       mimeType = getMimeType(filename);
     }
 
-    console.log(`Sending image for analysis: ${filename}`);
-    console.log(`MIME type: ${mimeType}`);
-    console.log(`Image URL: ${url}`);
-    console.log(`Store image data: ${storeData}`);
-
     fetch(url)
       .then((response) => {
         if (!response.ok) {
@@ -504,7 +514,6 @@
           },
           (response) => {
             if (chrome.runtime.lastError) {
-              console.error("Error sending message:", chrome.runtime.lastError);
               displayAnalysisResults(
                 popup,
                 "Error: " + chrome.runtime.lastError.message,
@@ -517,7 +526,6 @@
                 "error"
               );
             } else {
-              console.log("Server response:", response);
               displayAnalysisResults(popup, response, "success");
             }
           }
@@ -531,98 +539,115 @@
 
   // Simplify displayAnalysisResults since UI cleanup is handled earlier
   function displayAnalysisResults(popup, results, status) {
-    // Clear any existing content
+    const overlayId = popup.getAttribute("data-overlay-id"); // Preserve the overlay ID
+
+    // Clear existing content
     popup.innerHTML = "";
 
     if (status === "error") {
       popup.innerHTML = `
-        <div class="error-container">
-          <p class="error">${results}</p>
-          <button class="close-btn">Close</button>
-        </div>
-      `;
+            <div class="error-container">
+                <p class="error">${results}</p>
+                <button class="close-btn">Close</button>
+            </div>
+        `;
     } else {
       const analysis = results.sageMakerAnalysis;
-      console.log("Analysis results:", analysis);
 
       if (analysis) {
         const probability = (analysis.probability * 100).toFixed(1);
         const isFake = analysis.isFake;
 
-        // Determine color based on probability
+        // Determine color and text based on probability
         let confidenceColor;
+        let titleText;
         if (probability < 33) {
           confidenceColor = "#28a745";
+          titleText = "This content is likely real.";
         } else if (probability < 66) {
           confidenceColor = "#ffc107";
+          titleText = "This content is uncertain—proceed with caution.";
         } else {
           confidenceColor = "#dc3545";
+          titleText = "This content is likely a deepfake.";
         }
 
         popup.innerHTML = `
-            <div class="probability-circle">
-              <svg width="150" height="150" viewBox="0 0 150 150">
-                <circle
-                  cx="75"
-                  cy="75"
-                  r="70"
-                  stroke="#E6E6E6"
-                  stroke-width="10"
-                  fill="none"
-                />
-                <circle
-                  cx="75"
-                  cy="75"
-                  r="70"
-                  stroke="${confidenceColor}"
-                  stroke-width="10"
-                  fill="none"
-                  stroke-linecap="round"
-                  stroke-dasharray="439.82"
-                  stroke-dashoffset="${439.82 * (1 - probability / 100)}"
-                  transform="rotate(-90 75 75)"
-                  style="transition: stroke-dashoffset 1s"
-                />
-              </svg>
-              <div class="probability-text">
-                <div class="probability-value" style="color: ${confidenceColor}">${probability}%</div>
-                <div class="probability-label">Deepfake Probability</div>
-              </div>
-            </div>
+                <div class="analysis-title" style="
+                    color: ${confidenceColor};
+                    font-weight: bold;
+                    text-align: center;
+                    margin-bottom: 20px;
+                    font-size: 16px;
+                ">${titleText}</div>
 
-            <div class="confidence-indicators">
-              <div class="indicator real">
-                <div class="indicator-dot"></div>
-                <div class="indicator-label">Likely Real</div>
-              </div>
-              <div class="indicator uncertain">
-                <div class="indicator-dot"></div>
-                <div class="indicator-label">Uncertain</div>
-              </div>
-              <div class="indicator fake">
-                <div class="indicator-dot"></div>
-                <div class="indicator-label">Likely Deepfake</div>
-              </div>
-            </div>
+                <div class="probability-circle">
+                    <svg width="150" height="150" viewBox="0 0 150 150">
+                        <circle
+                            cx="75"
+                            cy="75"
+                            r="70"
+                            stroke="#E6E6E6"
+                            stroke-width="10"
+                            fill="none"
+                        />
+                        <circle
+                            cx="75"
+                            cy="75"
+                            r="70"
+                            stroke="${confidenceColor}"
+                            stroke-width="10"
+                            fill="none"
+                            stroke-linecap="round"
+                            stroke-dasharray="439.82"
+                            stroke-dashoffset="${
+                              439.82 * (1 - probability / 100)
+                            }"
+                            transform="rotate(-90 75 75)"
+                            style="transition: stroke-dashoffset 1s"
+                        />
+                    </svg>
+                    <div class="probability-text">
+                        <div class="probability-value" style="color: ${confidenceColor}">${probability}%</div>
+                        <div class="probability-label">Deepfake Probability</div>
+                    </div>
+                </div>
 
-            <div style="
-              width: 100%;
-              text-align: center; 
-              margin-top: 20px;
-            ">
-              <button class="close-btn">Close</button>
-            </div>
-          </div>
-        `;
+                <div class="confidence-indicators">
+                    <div class="indicator real">
+                        <div class="indicator-dot"></div>
+                        <div class="indicator-label">Likely Real</div>
+                    </div>
+                    <div class="indicator uncertain">
+                        <div class="indicator-dot"></div>
+                        <div class="indicator-label">Uncertain</div>
+                    </div>
+                    <div class="indicator fake">
+                        <div class="indicator-dot"></div>
+                        <div class="indicator-label">Likely Deepfake</div>
+                    </div>
+                </div>
+
+                <div style="
+                    width: 100%;
+                    text-align: center; 
+                    margin-top: 20px;
+                ">
+                    <button class="close-btn">Close</button>
+                </div>
+            `;
       } else {
         popup.innerHTML = `
-          <div class="error-container">
-            <p class="error">No analysis results available</p>
-            <button class="close-btn">Close</button>
-          </div>
-        `;
+                <div class="error-container">
+                    <p class="error">No analysis results available</p>
+                    <button class="close-btn">Close</button>
+                </div>
+            `;
       }
     }
+
+    // Ensure the overlay ID is maintained after updating content
+    popup.setAttribute("data-overlay-id", overlayId);
 
     // Add click handler for the close button
     const closeBtn = popup.querySelector(".close-btn");
@@ -947,9 +972,7 @@
 
   // Message listener for chrome runtime messages
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log("Message received in social content script:", request);
     if (request.action === "settingsChanged") {
-      console.log("Settings changed:", request.changes);
       // Update your content script's behavior based on the new settings
       // For example:
       updateSettings(request.changes);
@@ -965,7 +988,6 @@
   function updateSettings(changes) {
     // Implement this function to update your content script's behavior
     // based on the changed settings
-    console.log("Updating settings in content script:", changes);
     // Example:
     if (changes.enableOverlay) {
       extensionEnabled = changes.enableOverlay.newValue;
@@ -994,8 +1016,6 @@
 
   // Create image overlay
   function createImageOverlay(imageElement) {
-    debugLog("Creating overlay for image:", imageElement);
-
     let wrapper = imageElement.closest(".image-wrapper");
     if (!wrapper) {
       wrapper = document.createElement("div");
@@ -1015,7 +1035,6 @@
       (e) => {
         e.stopPropagation();
         e.preventDefault();
-        debugLog("Overlay clicked, showing popup");
         showConsentPopup(overlay, imageElement.src);
       },
       true
@@ -1039,7 +1058,6 @@
 
   // Log errors
   function logError(error) {
-    console.error("RealEyes.ai Extension Error:", error);
     // Additional logging mechanisms can be added here
   }
 
