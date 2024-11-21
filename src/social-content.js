@@ -344,15 +344,15 @@
 
     // Add popup content
     popup.innerHTML = `
-      <p class="consent-message">Send Image for Analysis?</p>
+      <p class="consent-message">Analyze this image?</p>
       <div class="consent-buttons">
-        <button class="confirm-btn">Analyze Image</button>
-        <button class="cancel-btn">Cancel</button>
+        <button class="confirm-btn">Analyze Now</button>
+        <button class="cancel-btn">Skip</button>
       </div>
       <div class="consent-options">
         <label class="store-data-option">
           <input type="checkbox" class="store-data-checkbox" id="storeImageData" checked>
-          <span>Allow storage of image for improved detection</span>
+          <span>Help us improve detection by storing this image</span>
         </label>
       </div>
     `;
