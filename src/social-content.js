@@ -196,7 +196,17 @@
       overlay = document.createElement("div");
       overlay.className = "image-overlay";
       overlay.dataset.forImage = img.src;
-      overlay.dataset.overlayId = uniqueId; // Add unique identifier
+      overlay.dataset.overlayId = uniqueId;
+
+      // Create an img element for the icon
+      const iconImg = document.createElement("img");
+      iconImg.src = chrome.runtime.getURL("icons/realeyes-ai-icon.png");
+      iconImg.style.cssText = `
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+      `;
+
       overlay.style.cssText = `
             position: absolute;
             width: 30px;
@@ -214,7 +224,9 @@
             opacity: 0.5;
             transition: opacity 0.3s ease, background-color 0.3s ease, display 0.3s ease;
         `;
-      overlay.textContent = "🧿";
+
+      // Replace emoji with the image
+      overlay.appendChild(iconImg);
 
       overlay.onclick = (e) => {
         e.stopPropagation();
@@ -539,16 +551,14 @@
 
   // Simplify displayAnalysisResults since UI cleanup is handled earlier
   function displayAnalysisResults(popup, results, status) {
-    const overlayId = popup.getAttribute("data-overlay-id"); // Preserve the overlay ID
-
-    // Clear existing content
+    const overlayId = popup.getAttribute("data-overlay-id");
     popup.innerHTML = "";
 
     if (status === "error") {
       popup.innerHTML = `
             <div class="error-container">
+                <div class="close-x">×</div>
                 <p class="error">${results}</p>
-                <button class="close-btn">Close</button>
             </div>
         `;
     } else {
@@ -573,6 +583,7 @@
         }
 
         popup.innerHTML = `
+                <div class="close-x">×</div>
                 <div class="analysis-title" style="
                     color: ${confidenceColor};
                     font-weight: bold;
@@ -627,32 +638,42 @@
                         <div class="indicator-label">Likely Deepfake</div>
                     </div>
                 </div>
-
-                <div style="
-                    width: 100%;
-                    text-align: center; 
-                    margin-top: 20px;
-                ">
-                    <button class="close-btn">Close</button>
-                </div>
             `;
+
+        // Add CSS for the close-x
+        const style = document.createElement("style");
+        style.textContent = `
+                .close-x {
+                    position: absolute;
+                    top: 5px;
+                    right: 10px;
+                    cursor: pointer;
+                    font-size: 20px;
+                    color: #666;
+                    transition: color 0.2s;
+                }
+                .close-x:hover {
+                    color: #333;
+                }
+            `;
+        document.head.appendChild(style);
       } else {
         popup.innerHTML = `
                 <div class="error-container">
+                    <div class="close-x">×</div>
                     <p class="error">No analysis results available</p>
-                    <button class="close-btn">Close</button>
                 </div>
             `;
       }
     }
 
-    // Ensure the overlay ID is maintained after updating content
+    // Ensure the overlay ID is maintained
     popup.setAttribute("data-overlay-id", overlayId);
 
-    // Add click handler for the close button
-    const closeBtn = popup.querySelector(".close-btn");
-    if (closeBtn) {
-      closeBtn.addEventListener("click", () => {
+    // Add click handler for the close X
+    const closeX = popup.querySelector(".close-x");
+    if (closeX) {
+      closeX.addEventListener("click", () => {
         popup.remove();
       });
     }
