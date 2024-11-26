@@ -155,22 +155,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }),
       })
         .then(async (response) => {
-          // Get the response body regardless of status
           const data = await response.json();
 
-          if (!response.ok) {
-            // If it's a 409 Conflict, return the specific error message
-            if (response.status === 409) {
-              throw new Error(
+          // Handle 409 as a special case
+          if (response.status === 409) {
+            return sendResponse({
+              success: false,
+              alreadySubmitted: true,
+              message:
                 data.error ||
-                  "User has already submitted feedback for this image"
-              );
-            }
+                "User has already submitted feedback for this image",
+            });
+          }
+
+          // Handle other error cases
+          if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
-          return data;
-        })
-        .then((data) => {
+
+          // Handle success case
           console.log("Feedback submitted successfully:", data);
           sendResponse({ success: true, data });
         })

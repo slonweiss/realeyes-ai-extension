@@ -663,7 +663,7 @@
                 </div>
 
                 <div class="feedback-section" style="margin-top: 20px; text-align: center;">
-                    <p style="margin-bottom: 10px;">Was this analysis helpful?</p>
+                    <p style="margin-bottom: 10px; color: #333;">Was this analysis helpful?</p>
                     <div class="feedback-buttons">
                         <button class="feedback-btn thumbs-up" data-image-hash="${
                           results.imageHash
@@ -677,22 +677,26 @@
                         </button>
                     </div>
                     <div class="feedback-comment" style="display: none;">
-                        <textarea placeholder="Tell us why (optional)" maxlength="500" style="
-                            width: calc(100% - 20px);
-                            max-width: 280px;
-                            margin: 10px auto;
-                            padding: 8px;
-                            border: 1px solid #ccc;
-                            border-radius: 4px;
-                            resize: vertical;
-                            min-height: 60px;
-                            max-height: 120px;
-                            font-family: inherit;
-                            font-size: 14px;
-                            color: #333;
-                            background-color: #fff;
-                            box-sizing: border-box;
-                        "></textarea>
+                        <textarea 
+                            placeholder="Tell us why (optional)" 
+                            maxlength="500" 
+                            style="
+                                width: calc(100% - 20px);
+                                max-width: 280px;
+                                margin: 10px auto;
+                                padding: 8px;
+                                border: 1px solid #ccc;
+                                border-radius: 4px;
+                                resize: vertical;
+                                min-height: 60px;
+                                max-height: 120px;
+                                font-family: inherit;
+                                font-size: 14px;
+                                color: #333;
+                                background-color: #fff;
+                                box-sizing: border-box;
+                            "
+                        ></textarea>
                         <button class="submit-feedback-btn" style="
                             margin-top: 10px;
                             padding: 8px 16px;
@@ -805,46 +809,33 @@
               (response) => {
                 console.log("Feedback submission response:", response);
                 if (response.success) {
-                  // Replace entire feedback section content with a more compact success message
+                  // Show success message without animations
                   const feedbackSection =
                     popup.querySelector(".feedback-section");
-                  feedbackSection.style.marginTop = "0"; // Remove extra margin
+                  feedbackSection.style.marginTop = "0";
                   feedbackSection.innerHTML = `
                     <div class="feedback-success">
-                      <div class="success-animation">
-                        <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-                          <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
-                          <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                      <div class="icon-container">
+                        <svg class="status-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                          <circle cx="26" cy="26" r="25" fill="none" stroke="#4CAF50" stroke-width="2"/>
+                          <path fill="none" stroke="#4CAF50" stroke-width="2" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
                         </svg>
-                        <div class="success-ripple"></div>
                       </div>
                       <h3 class="feedback-title">Thank you!</h3>
                       <p class="feedback-message">Your feedback helps improve our analyses</p>
                     </div>
                   `;
-
-                  // Add transition for smooth height adjustment
-                  popup.style.transition = "height 0.3s ease-out";
-                  // Adjust popup height to fit new content
-                  setTimeout(() => {
-                    popup.style.height = "auto";
-                    const newHeight = popup.offsetHeight;
-                    popup.style.height = newHeight + "px";
-                  }, 0);
-                } else if (
-                  response.error &&
-                  response.error.includes("already submitted feedback")
-                ) {
-                  // Handle case where user already submitted feedback
+                } else if (response.alreadySubmitted) {
+                  // Show already submitted message without animations
                   const feedbackSection =
                     popup.querySelector(".feedback-section");
                   feedbackSection.style.marginTop = "0";
                   feedbackSection.innerHTML = `
                     <div class="feedback-already-submitted">
-                      <div class="info-animation">
-                        <svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-                          <circle class="info-circle" cx="26" cy="26" r="25" fill="none"/>
-                          <path class="info-mark" fill="none" d="M26 15v2m0 7v13"/>
+                      <div class="icon-container">
+                        <svg class="status-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                          <circle cx="26" cy="26" r="25" fill="none" stroke="#3498db" stroke-width="2"/>
+                          <path fill="none" stroke="#3498db" stroke-width="2" d="M26 15v2m0 7v13"/>
                         </svg>
                       </div>
                       <h3 class="feedback-title" style="color: #3498db;">Already Submitted</h3>
@@ -1304,223 +1295,37 @@
       font-size: 14px;
     }
 
-    .feedback-success {
-      text-align: center;
-      padding: 10px;
-      animation: fadeIn 0.5s ease-out;
-    }
-
-    .success-animation {
-      position: relative;
-      margin: 0 auto;
-      width: 60px;
-      height: 60px;
-    }
-
-    .checkmark {
-      width: 46px;
-      height: 46px;
-      margin: 0 auto;
-      border-radius: 50%;
-      display: block;
-      position: relative;
-      z-index: 1;
-      animation: scaleIn 0.3s ease-in-out;
-    }
-
-    .feedback-title {
-      color: #4CAF50;
-      font-size: 1.2em;
-      margin: 10px 0 5px;
-      animation: slideUp 0.5s ease-out 0.3s both;
-    }
-
-    .feedback-message {
-      color: #666;
-      font-size: 0.9em;
-      margin: 5px 0;
-      animation: slideUp 0.5s ease-out 0.4s both;
-    }
-
-    .success-ripple {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      border: 3px solid #4CAF50;
-      opacity: 0;
-      animation: ripple 1s cubic-bezier(0.65, 0, 0.45, 1) forwards;
-    }
-
-    .checkmark {
-      width: 56px;
-      height: 56px;
-      margin: 0 auto;
-      border-radius: 50%;
-      display: block;
-      position: relative;
-      z-index: 1;
-      animation: scaleIn 0.3s ease-in-out;
-    }
-
-    .checkmark-circle {
-      stroke: #4CAF50;
-      stroke-width: 2;
-      stroke-dasharray: 166;
-      stroke-dashoffset: 166;
-      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
-    }
-
-    .checkmark-check {
-      stroke: #4CAF50;
-      stroke-width: 2;
-      stroke-dasharray: 48;
-      stroke-dashoffset: 48;
-      animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards;
-    }
-
-    .feedback-title {
-      color: #4CAF50;
-      font-size: 1.5em;
-      margin: 15px 0 5px;
-      animation: slideUp 0.5s ease-out 0.3s both;
-    }
-
-    .feedback-message {
-      color: #666;
-      font-size: 1em;
-      margin: 5px 0 15px;
-      animation: slideUp 0.5s ease-out 0.4s both;
-    }
-
-    .feedback-icons {
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin-top: 15px;
-      animation: slideUp 0.5s ease-out 0.5s both;
-    }
-
-    .icon-wrapper {
-      width: 40px;
-      height: 40px;
-      background: #f0f9f0;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.3s ease;
-    }
-
-    .icon-wrapper:hover {
-      transform: scale(1.1);
-    }
-
-    .feedback-icon {
-      width: 24px;
-      height: 24px;
-      fill: #4CAF50;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @keyframes ripple {
-      0% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(0.3);
-      }
-      100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(2);
-      }
-    }
-
-    @keyframes scaleIn {
-      from {
-        transform: scale(0);
-        opacity: 0;
-      }
-      to {
-        transform: scale(1);
-        opacity: 1;
-      }
-    }
-
-    @keyframes stroke {
-      100% {
-        stroke-dashoffset: 0;
-      }
-    }
-
+    .feedback-success,
     .feedback-already-submitted {
       text-align: center;
       padding: 10px;
-      animation: fadeIn 0.5s ease-out;
     }
 
-    .info-animation {
-      position: relative;
+    .icon-container {
       margin: 0 auto;
-      width: 60px;
-      height: 60px;
-    }
-
-    .info-icon {
       width: 46px;
       height: 46px;
-      margin: 0 auto;
-      border-radius: 50%;
-      display: block;
-      position: relative;
-      z-index: 1;
-      animation: scaleIn 0.3s ease-in-out;
     }
 
-    .info-circle {
-      stroke: #3498db;
-      stroke-width: 2;
-      stroke-dasharray: 166;
-      stroke-dashoffset: 166;
-      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    .status-icon {
+      width: 100%;
+      height: 100%;
     }
 
-    .info-mark {
-      stroke: #3498db;
-      stroke-width: 2;
-      stroke-dasharray: 48;
-      stroke-dashoffset: 48;
-      animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards;
-    }
-
-    .feedback-already-submitted .feedback-title {
-      color: #3498db;
+    .feedback-title {
+      color: #4CAF50;
       font-size: 1.2em;
       margin: 10px 0 5px;
-      animation: slideUp 0.5s ease-out 0.3s both;
     }
 
-    .feedback-already-submitted .feedback-message {
+    .feedback-message {
       color: #666;
       font-size: 0.9em;
       margin: 5px 0;
-      animation: slideUp 0.5s ease-out 0.4s both;
+    }
+
+    .feedback-section p {
+      color: #333 !important;
     }
   `;
 
