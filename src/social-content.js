@@ -13,6 +13,29 @@
     };
   }
 
+  // Add after the debounce function (around line 15)
+  function decodeJWT(token) {
+    try {
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map((c) => {
+            return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+          })
+          .join("")
+      );
+      const decoded = JSON.parse(jsonPayload);
+      console.log("Decoded JWT payload:", decoded);
+      console.log("Extracted userId:", decoded.username);
+      return decoded;
+    } catch (error) {
+      console.error("Error decoding JWT:", error);
+      return null;
+    }
+  }
+
   // Global variables
   let extensionEnabled = false;
   let siteEnabled = false;
@@ -638,6 +661,51 @@
                         <div class="indicator-label">Likely Deepfake</div>
                     </div>
                 </div>
+
+                <div class="feedback-section" style="margin-top: 20px; text-align: center;">
+                    <p style="margin-bottom: 10px;">Was this analysis helpful?</p>
+                    <div class="feedback-buttons">
+                        <button class="feedback-btn thumbs-up" data-image-hash="${
+                          results.imageHash
+                        }" data-value="up">
+                            <span>👍</span>
+                        </button>
+                        <button class="feedback-btn thumbs-down" data-image-hash="${
+                          results.imageHash
+                        }" data-value="down">
+                            <span>👎</span>
+                        </button>
+                    </div>
+                    <div class="feedback-comment" style="display: none;">
+                        <textarea placeholder="Tell us why (optional)" maxlength="500" style="
+                            width: calc(100% - 20px);
+                            max-width: 280px;
+                            margin: 10px auto;
+                            padding: 8px;
+                            border: 1px solid #ccc;
+                            border-radius: 4px;
+                            resize: vertical;
+                            min-height: 60px;
+                            max-height: 120px;
+                            font-family: inherit;
+                            font-size: 14px;
+                            color: #333;
+                            background-color: #fff;
+                            box-sizing: border-box;
+                        "></textarea>
+                        <button class="submit-feedback-btn" style="
+                            margin-top: 10px;
+                            padding: 8px 16px;
+                            background-color: #4CAF50;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            font-family: inherit;
+                        ">Submit Feedback</button>
+                    </div>
+                </div>
             `;
 
         // Add CSS for the close-x
@@ -657,6 +725,151 @@
                 }
             `;
         document.head.appendChild(style);
+
+        // Add event listeners for feedback buttons
+        const feedbackBtns = popup.querySelectorAll(".feedback-btn");
+        const feedbackComment = popup.querySelector(".feedback-comment");
+        const submitBtn = popup.querySelector(".submit-feedback-btn");
+        const textarea = popup.querySelector("textarea");
+
+        feedbackBtns.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            // Remove active class from all buttons
+            feedbackBtns.forEach((b) => b.classList.remove("active"));
+            // Add active class to clicked button
+            btn.classList.add("active");
+            // Show comment section
+            feedbackComment.style.display = "block";
+          });
+        });
+
+        submitBtn.addEventListener("click", async () => {
+          // Disable the submit button and show loading state
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = `
+            <span class="spinner"></span>
+            Sending...
+          `;
+
+          // Get auth token from storage
+          const { authToken } = await chrome.storage.local.get(["authToken"]);
+          console.log(
+            "Retrieved authToken:",
+            authToken ? "Token exists" : "No token found"
+          );
+
+          if (!authToken) {
+            console.error("No auth token found");
+            submitBtn.innerHTML = "Error: Please log in";
+            return;
+          }
+
+          // Decode JWT and get userId
+          const decodedToken = decodeJWT(authToken);
+          const userId = decodedToken?.username || null;
+          console.log("Final userId to be submitted:", userId);
+
+          const feedbackBtns = popup.querySelectorAll(".feedback-btn");
+          const feedbackComment = popup.querySelector(".feedback-comment");
+          const imageHash = feedbackBtns[0].dataset.imageHash;
+          const selectedFeedback = Array.from(feedbackBtns)
+            .find((btn) => btn.classList.contains("active"))
+            ?.getAttribute("data-value");
+          const comment = feedbackComment?.value?.trim() || "";
+
+          if (!selectedFeedback) {
+            console.error("No feedback selected");
+            return;
+          }
+
+          console.log("Submitting feedback with data:", {
+            imageHash,
+            feedbackType: selectedFeedback,
+            comment,
+            userId,
+          });
+
+          try {
+            // Send message to background script
+            chrome.runtime.sendMessage(
+              {
+                action: "submitFeedback",
+                feedbackData: {
+                  imageHash,
+                  feedbackType: selectedFeedback,
+                  comment,
+                  userId,
+                },
+                origin: window.location.origin,
+              },
+              (response) => {
+                console.log("Feedback submission response:", response);
+                if (response.success) {
+                  // Replace entire feedback section content with a more compact success message
+                  const feedbackSection =
+                    popup.querySelector(".feedback-section");
+                  feedbackSection.style.marginTop = "0"; // Remove extra margin
+                  feedbackSection.innerHTML = `
+                    <div class="feedback-success">
+                      <div class="success-animation">
+                        <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                          <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+                          <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                        </svg>
+                        <div class="success-ripple"></div>
+                      </div>
+                      <h3 class="feedback-title">Thank you!</h3>
+                      <p class="feedback-message">Your feedback helps improve our analyses</p>
+                    </div>
+                  `;
+
+                  // Add transition for smooth height adjustment
+                  popup.style.transition = "height 0.3s ease-out";
+                  // Adjust popup height to fit new content
+                  setTimeout(() => {
+                    popup.style.height = "auto";
+                    const newHeight = popup.offsetHeight;
+                    popup.style.height = newHeight + "px";
+                  }, 0);
+                } else {
+                  // Show error and re-enable submit button
+                  submitBtn.disabled = false;
+                  submitBtn.innerHTML = "Submit Feedback";
+
+                  const errorMsg = document.createElement("p");
+                  errorMsg.className = "feedback-error";
+                  errorMsg.textContent = `Error: ${
+                    response.error || "Failed to submit feedback"
+                  }`;
+                  submitBtn.parentNode.insertBefore(
+                    errorMsg,
+                    submitBtn.nextSibling
+                  );
+
+                  // Auto-remove error message after 3 seconds
+                  setTimeout(() => {
+                    errorMsg.remove();
+                  }, 3000);
+                }
+              }
+            );
+          } catch (error) {
+            console.error("Error in feedback submission:", error);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = "Submit Feedback";
+
+            const errorMsg = document.createElement("p");
+            errorMsg.className = "feedback-error";
+            errorMsg.textContent = "Error: Failed to submit feedback";
+            submitBtn.parentNode.insertBefore(errorMsg, submitBtn.nextSibling);
+          }
+        });
+
+        console.log("Feedback buttons:", {
+          feedbackBtns: popup.querySelectorAll(".feedback-btn"),
+          submitBtn: popup.querySelector(".submit-feedback-btn"),
+          feedbackComment: popup.querySelector(".feedback-comment"),
+        });
       } else {
         popup.innerHTML = `
                 <div class="error-container">
@@ -1028,6 +1241,217 @@
     
     .image-fill:state(webkit-fill-available) {
       width: -webkit-fill-available;
+    }
+
+    .feedback-btn {
+      padding: 8px 16px;
+      margin: 0 5px;
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .feedback-btn:hover {
+      background-color: #f0f0f0;
+    }
+
+    .feedback-btn.active {
+      background-color: #e0e0e0;
+      border-color: #999;
+    }
+
+    .feedback-btn span {
+      font-size: 18px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .feedback-error {
+      color: #dc3545;
+      margin: 8px 0;
+      font-size: 14px;
+    }
+
+    .feedback-success {
+      text-align: center;
+      padding: 10px;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .success-animation {
+      position: relative;
+      margin: 0 auto;
+      width: 60px;
+      height: 60px;
+    }
+
+    .checkmark {
+      width: 46px;
+      height: 46px;
+      margin: 0 auto;
+      border-radius: 50%;
+      display: block;
+      position: relative;
+      z-index: 1;
+      animation: scaleIn 0.3s ease-in-out;
+    }
+
+    .feedback-title {
+      color: #4CAF50;
+      font-size: 1.2em;
+      margin: 10px 0 5px;
+      animation: slideUp 0.5s ease-out 0.3s both;
+    }
+
+    .feedback-message {
+      color: #666;
+      font-size: 0.9em;
+      margin: 5px 0;
+      animation: slideUp 0.5s ease-out 0.4s both;
+    }
+
+    .success-ripple {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 3px solid #4CAF50;
+      opacity: 0;
+      animation: ripple 1s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+
+    .checkmark {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto;
+      border-radius: 50%;
+      display: block;
+      position: relative;
+      z-index: 1;
+      animation: scaleIn 0.3s ease-in-out;
+    }
+
+    .checkmark-circle {
+      stroke: #4CAF50;
+      stroke-width: 2;
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+
+    .checkmark-check {
+      stroke: #4CAF50;
+      stroke-width: 2;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards;
+    }
+
+    .feedback-title {
+      color: #4CAF50;
+      font-size: 1.5em;
+      margin: 15px 0 5px;
+      animation: slideUp 0.5s ease-out 0.3s both;
+    }
+
+    .feedback-message {
+      color: #666;
+      font-size: 1em;
+      margin: 5px 0 15px;
+      animation: slideUp 0.5s ease-out 0.4s both;
+    }
+
+    .feedback-icons {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 15px;
+      animation: slideUp 0.5s ease-out 0.5s both;
+    }
+
+    .icon-wrapper {
+      width: 40px;
+      height: 40px;
+      background: #f0f9f0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s ease;
+    }
+
+    .icon-wrapper:hover {
+      transform: scale(1.1);
+    }
+
+    .feedback-icon {
+      width: 24px;
+      height: 24px;
+      fill: #4CAF50;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes ripple {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(0.3);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(2);
+      }
+    }
+
+    @keyframes scaleIn {
+      from {
+        transform: scale(0);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes stroke {
+      100% {
+        stroke-dashoffset: 0;
+      }
     }
   `;
 

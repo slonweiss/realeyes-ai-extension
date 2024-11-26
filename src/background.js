@@ -127,6 +127,52 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     checkForAuthToken(sender.tab.id);
   }
 
+  if (request.action === "submitFeedback") {
+    // Get the auth token first
+    chrome.storage.local.get(["authToken"], function (result) {
+      const authToken = result.authToken;
+
+      if (!authToken) {
+        console.error("No auth token found");
+        sendResponse({ success: false, error: "Authentication required" });
+        return;
+      }
+
+      const { imageHash, feedbackType, comment, userId } = request.feedbackData;
+
+      fetch("https://api.realeyes.ai/submit-feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Origin": request.origin,
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          imageHash,
+          feedbackType,
+          comment,
+          userId,
+        }),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          console.log("Feedback submitted successfully:", data);
+          sendResponse({ success: true, data });
+        })
+        .catch((error) => {
+          console.error("Error submitting feedback:", error);
+          sendResponse({ success: false, error: error.message });
+        });
+    });
+
+    return true; // Will respond asynchronously
+  }
+
   return false; // For other messages, we're not sending a response
 });
 
