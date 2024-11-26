@@ -504,73 +504,92 @@
     let filename = url.split("/").pop().split("?")[0];
     let mimeType = "image/jpeg"; // Default to JPEG for Twitter images
 
-    if (url.includes("twimg.com")) {
-      // For Twitter images, extract format from URL
-      const format = new URL(url).searchParams.get("format");
-      if (format) {
-        filename += `.${format}`;
-        mimeType = `image/${format}`;
-      }
-    } else {
-      mimeType = getMimeType(filename);
-    }
+    // Get auth token first
+    chrome.storage.local.get(["authToken"], async function (result) {
+      const authToken = result.authToken;
 
-    fetch(url)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.arrayBuffer();
-      })
-      .then((arrayBuffer) => {
-        const uint8Array = new Uint8Array(arrayBuffer);
-        return crypto.subtle
-          .digest("SHA-256", uint8Array)
-          .then((hashBuffer) => {
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashHex = hashArray
-              .map((b) => b.toString(16).padStart(2, "0"))
-              .join("");
-            return { uint8Array, hashHex };
-          });
-      })
-      .then(({ uint8Array, hashHex }) => {
-        chrome.runtime.sendMessage(
-          {
-            action: "sendImage",
-            imageData: {
-              url,
-              mimeType,
-              filename,
-              size: uint8Array.length,
-              sha256Hash: hashHex,
-              origin: window.location.origin,
-              storeData: storeData, // Add the storage consent flag
-            },
-          },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              displayAnalysisResults(
-                popup,
-                "Error: " + chrome.runtime.lastError.message,
-                "error"
-              );
-            } else if (response.error === "Authentication required") {
-              displayAnalysisResults(
-                popup,
-                "Authentication required. Please log in and try again.",
-                "error"
-              );
-            } else {
-              displayAnalysisResults(popup, response, "success");
-            }
-          }
+      if (!authToken) {
+        displayAnalysisResults(
+          popup,
+          "Authentication required. Please log in and try again.",
+          "error"
         );
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        displayAnalysisResults(popup, "Error: " + error.message, "error");
-      });
+        return;
+      }
+
+      // Decode JWT and get userId
+      const decodedToken = decodeJWT(authToken);
+      const userId = decodedToken?.username || null;
+
+      if (url.includes("twimg.com")) {
+        // For Twitter images, extract format from URL
+        const format = new URL(url).searchParams.get("format");
+        if (format) {
+          filename += `.${format}`;
+          mimeType = `image/${format}`;
+        }
+      } else {
+        mimeType = getMimeType(filename);
+      }
+
+      fetch(url)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.arrayBuffer();
+        })
+        .then((arrayBuffer) => {
+          const uint8Array = new Uint8Array(arrayBuffer);
+          return crypto.subtle
+            .digest("SHA-256", uint8Array)
+            .then((hashBuffer) => {
+              const hashArray = Array.from(new Uint8Array(hashBuffer));
+              const hashHex = hashArray
+                .map((b) => b.toString(16).padStart(2, "0"))
+                .join("");
+              return { uint8Array, hashHex };
+            });
+        })
+        .then(({ uint8Array, hashHex }) => {
+          chrome.runtime.sendMessage(
+            {
+              action: "sendImage",
+              imageData: {
+                url,
+                mimeType,
+                filename,
+                size: uint8Array.length,
+                sha256Hash: hashHex,
+                origin: window.location.origin,
+                storeData: storeData,
+                userId: userId, // Add userId to the request
+              },
+            },
+            (response) => {
+              if (chrome.runtime.lastError) {
+                displayAnalysisResults(
+                  popup,
+                  "Error: " + chrome.runtime.lastError.message,
+                  "error"
+                );
+              } else if (response.error === "Authentication required") {
+                displayAnalysisResults(
+                  popup,
+                  "Authentication required. Please log in and try again.",
+                  "error"
+                );
+              } else {
+                displayAnalysisResults(popup, response, "success");
+              }
+            }
+          );
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          displayAnalysisResults(popup, "Error: " + error.message, "error");
+        });
+    });
   }
 
   // Simplify displayAnalysisResults since UI cleanup is handled earlier
