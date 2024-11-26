@@ -155,10 +155,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }),
       })
         .then(async (response) => {
+          // Get the response body regardless of status
+          const data = await response.json();
+
           if (!response.ok) {
+            // If it's a 409 Conflict, return the specific error message
+            if (response.status === 409) {
+              throw new Error(
+                data.error ||
+                  "User has already submitted feedback for this image"
+              );
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
           }
-          return response.json();
+          return data;
         })
         .then((data) => {
           console.log("Feedback submitted successfully:", data);
@@ -166,7 +176,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })
         .catch((error) => {
           console.error("Error submitting feedback:", error);
-          sendResponse({ success: false, error: error.message });
+          sendResponse({
+            success: false,
+            error: error.message,
+            status: error.status,
+          });
         });
     });
 

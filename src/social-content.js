@@ -831,8 +831,28 @@
                     const newHeight = popup.offsetHeight;
                     popup.style.height = newHeight + "px";
                   }, 0);
+                } else if (
+                  response.error &&
+                  response.error.includes("already submitted feedback")
+                ) {
+                  // Handle case where user already submitted feedback
+                  const feedbackSection =
+                    popup.querySelector(".feedback-section");
+                  feedbackSection.style.marginTop = "0";
+                  feedbackSection.innerHTML = `
+                    <div class="feedback-already-submitted">
+                      <div class="info-animation">
+                        <svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                          <circle class="info-circle" cx="26" cy="26" r="25" fill="none"/>
+                          <path class="info-mark" fill="none" d="M26 15v2m0 7v13"/>
+                        </svg>
+                      </div>
+                      <h3 class="feedback-title" style="color: #3498db;">Already Submitted</h3>
+                      <p class="feedback-message">You've already provided feedback for this image</p>
+                    </div>
+                  `;
                 } else {
-                  // Show error and re-enable submit button
+                  // Existing error handling
                   submitBtn.disabled = false;
                   submitBtn.innerHTML = "Submit Feedback";
 
@@ -845,11 +865,6 @@
                     errorMsg,
                     submitBtn.nextSibling
                   );
-
-                  // Auto-remove error message after 3 seconds
-                  setTimeout(() => {
-                    errorMsg.remove();
-                  }, 3000);
                 }
               }
             );
@@ -1452,6 +1467,60 @@
       100% {
         stroke-dashoffset: 0;
       }
+    }
+
+    .feedback-already-submitted {
+      text-align: center;
+      padding: 10px;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .info-animation {
+      position: relative;
+      margin: 0 auto;
+      width: 60px;
+      height: 60px;
+    }
+
+    .info-icon {
+      width: 46px;
+      height: 46px;
+      margin: 0 auto;
+      border-radius: 50%;
+      display: block;
+      position: relative;
+      z-index: 1;
+      animation: scaleIn 0.3s ease-in-out;
+    }
+
+    .info-circle {
+      stroke: #3498db;
+      stroke-width: 2;
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+
+    .info-mark {
+      stroke: #3498db;
+      stroke-width: 2;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards;
+    }
+
+    .feedback-already-submitted .feedback-title {
+      color: #3498db;
+      font-size: 1.2em;
+      margin: 10px 0 5px;
+      animation: slideUp 0.5s ease-out 0.3s both;
+    }
+
+    .feedback-already-submitted .feedback-message {
+      color: #666;
+      font-size: 0.9em;
+      margin: 5px 0;
+      animation: slideUp 0.5s ease-out 0.4s both;
     }
   `;
 
