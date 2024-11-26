@@ -228,6 +228,7 @@
         width: 20px;
         height: 20px;
         object-fit: contain;
+        ${currentSite === "reddit" ? "margin-top: 16px;" : ""}
       `;
 
       overlay.style.cssText = `
@@ -654,7 +655,7 @@
                     </div>
                     <div class="indicator uncertain">
                         <div class="indicator-dot"></div>
-                        <div class="indicator-label">Uncertain</div>
+                        <div class="indicator-label" style="white-space: nowrap;">Uncertain</div>
                     </div>
                     <div class="indicator fake">
                         <div class="indicator-dot"></div>
