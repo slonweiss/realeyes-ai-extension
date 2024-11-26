@@ -752,7 +752,7 @@
 
         // Add event listeners for feedback buttons
         const feedbackBtns = popup.querySelectorAll(".feedback-btn");
-        const feedbackComment = popup.querySelector(".feedback-comment");
+        const feedbackComment = popup.querySelector("textarea");
         const submitBtn = popup.querySelector(".submit-feedback-btn");
         const textarea = popup.querySelector("textarea");
 
@@ -794,7 +794,7 @@
           console.log("Final userId to be submitted:", userId);
 
           const feedbackBtns = popup.querySelectorAll(".feedback-btn");
-          const feedbackComment = popup.querySelector(".feedback-comment");
+          const feedbackComment = popup.querySelector("textarea");
           const imageHash = feedbackBtns[0].dataset.imageHash;
           const selectedFeedback = Array.from(feedbackBtns)
             .find((btn) => btn.classList.contains("active"))
@@ -894,7 +894,7 @@
         console.log("Feedback buttons:", {
           feedbackBtns: popup.querySelectorAll(".feedback-btn"),
           submitBtn: popup.querySelector(".submit-feedback-btn"),
-          feedbackComment: popup.querySelector(".feedback-comment"),
+          feedbackComment: popup.querySelector("textarea"),
         });
       } else {
         popup.innerHTML = `
