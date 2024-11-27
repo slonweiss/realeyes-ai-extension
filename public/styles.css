@@ -268,52 +268,55 @@
 }
 
 .probability-label {
-  font-size: 14px;
-  color: #333;
+  font-size: 12px !important;
+  color: #333 !important;
+  margin-top: 5px !important;
 }
 
 .confidence-indicators {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 20px;
-  gap: 20px;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-top: 20px !important;
+  gap: 20px !important;
+  width: 100% !important;
 }
 
 .indicator {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  flex: 1 !important;
+  text-align: left !important;
+  gap: 8px !important;
 }
 
 .indicator-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
 }
 
 .indicator-label {
-  font-size: 14px;
+  font-size: 14px !important;
+  text-align: left !important;
+  width: auto !important;
+  line-height: 1.2 !important;
 }
 
-.real {
-  color: #28a745;
-}
-.uncertain {
-  color: #ffc107;
-}
-.fake {
-  color: #dc3545;
+.real .indicator-label {
+  white-space: normal !important;
+  word-break: break-word !important;
+  max-width: 60px !important;
 }
 
-.real .indicator-dot {
-  background-color: #28a745;
-}
 .uncertain .indicator-dot {
-  background-color: #ffc107;
+  background-color: #ffc107 !important;
 }
+
 .fake .indicator-dot {
-  background-color: #dc3545;
+  background-color: #dc3545 !important;
 }
 
 .close-btn {
@@ -543,4 +546,105 @@
 
 .feedback-comment {
   margin-top: 5px !important;
+}
+
+.analysis-title {
+  color: inherit;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+.request-count {
+  text-align: center;
+  color: #666;
+  font-size: 12px;
+  margin: 15px 0 5px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.probability-label {
+  font-size: 12px;
+  color: #333;
+  margin-top: 5px;
+}
+
+.textarea-container textarea {
+  width: calc(100% - 20px);
+  max-width: 280px;
+  margin: 10px auto;
+  padding: 8px;
+  padding-bottom: 25px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: none;
+  min-height: 60px;
+  max-height: 120px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #333;
+  background-color: #fff;
+  box-sizing: border-box;
+}
+
+.submit-feedback-btn {
+  margin-top: 5px;
+  padding: 8px 16px;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: inherit;
+  transition: background-color 0.2s ease;
+}
+
+.submit-feedback-btn:hover {
+  background-color: #1976d2;
+}
+
+.close-x {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  cursor: pointer;
+  font-size: 20px;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.close-x:hover {
+  color: #333;
+}
+
+.real .indicator-dot {
+  background-color: #28a745 !important;
+}
+
+.uncertain .indicator-dot {
+  background-color: #ffc107 !important;
+}
+
+.fake .indicator-dot {
+  background-color: #dc3545 !important;
+}
+
+.real .indicator-label {
+  color: #28a745 !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  max-width: 60px !important;
+}
+
+.uncertain .indicator-label {
+  color: #ffc107 !important;
+}
+
+.fake .indicator-label {
+  color: #dc3545 !important;
 }

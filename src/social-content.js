@@ -649,13 +649,7 @@
 
         popup.innerHTML = `
                 <div class="close-x">×</div>
-                <div class="analysis-title" style="
-                    color: ${confidenceColor};
-                    font-weight: bold;
-                    text-align: center;
-                    margin-bottom: 20px;
-                    font-size: 16px;
-                ">${titleText}</div>
+                <div class="analysis-title" style="color: ${confidenceColor}">${titleText}</div>
 
                 <div class="probability-circle">
                     <svg width="150" height="150" viewBox="0 0 150 150">
@@ -685,7 +679,11 @@
                     </svg>
                     <div class="probability-text">
                         <div class="probability-value" style="color: ${confidenceColor}">${probability}%</div>
-                        <div class="probability-label">Deepfake Probability</div>
+                        <div class="probability-label" style="
+                            font-size: 12px;
+                            color: #333;
+                            margin-top: 10px;
+                        ">Deepfake Probability</div>
                     </div>
                 </div>
 
@@ -702,6 +700,16 @@
                         <div class="indicator-dot"></div>
                         <div class="indicator-label">Likely Deepfake</div>
                     </div>
+                </div>
+
+                <div class="request-count">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2ZM12 20C7.6 20 4 16.4 4 12C4 7.6 7.6 4 12 4C16.4 4 20 7.6 20 12C20 16.4 16.4 20 12 20Z" fill="#666"/>
+                        <path d="M12.5 7H11V13L16.2 16.2L17 14.9L12.5 12.2V7Z" fill="#666"/>
+                    </svg>
+                    Image analyzed ${results.requestCount} time${
+          results.requestCount !== 1 ? "s" : ""
+        }
                 </div>
 
                 <div class="analysis-details-accordion">
@@ -770,40 +778,10 @@
                     </div>
                     <div class="feedback-comment" style="display: none;">
                         <div class="textarea-container">
-                            <textarea 
-                                placeholder="Tell us why (optional)" 
-                                maxlength="100" 
-                                style="
-                                    width: calc(100% - 20px);
-                                    max-width: 280px;
-                                    margin: 10px auto;
-                                    padding: 8px;
-                                    padding-bottom: 25px;
-                                    border: 1px solid #ccc;
-                                    border-radius: 4px;
-                                    resize: none;
-                                    min-height: 60px;
-                                    max-height: 120px;
-                                    font-family: inherit;
-                                    font-size: 14px;
-                                    color: #333;
-                                    background-color: #fff;
-                                    box-sizing: border-box;
-                                "
-                            ></textarea>
+                            <textarea placeholder="Tell us why (optional)" maxlength="100"></textarea>
                             <div class="char-counter">0/100 characters</div>
                         </div>
-                        <button class="submit-feedback-btn" style="
-                            margin-top: 5px;
-                            padding: 8px 16px;
-                            background-color: #4CAF50;
-                            color: white;
-                            border: none;
-                            border-radius: 4px;
-                            cursor: pointer;
-                            font-size: 14px;
-                            font-family: inherit;
-                        ">Submit Feedback</button>
+                        <button class="submit-feedback-btn">Submit Feedback</button>
                     </div>
                 </div>
             `;
