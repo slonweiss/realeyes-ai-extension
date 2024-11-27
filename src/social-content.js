@@ -1390,7 +1390,7 @@
 
     .char-counter {
         position: absolute;
-        bottom: 20px;
+        bottom: 17px;
         right: 15px;
         font-size: 10px;
         color: #666;
