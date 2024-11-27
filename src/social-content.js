@@ -613,10 +613,13 @@
         standardAnalysis.probability > ufdAnalysis.probability
           ? standardAnalysis
           : ufdAnalysis;
+      const modelUsed =
+        standardAnalysis.probability > ufdAnalysis.probability
+          ? "Standard Model"
+          : "UFD Model";
 
       if (analysis) {
         const probability = (analysis.probability * 100).toFixed(1);
-        const isFake = analysis.isFake;
 
         // Determine color and text based on probability
         let confidenceColor;
@@ -686,6 +689,69 @@
                     <div class="indicator fake">
                         <div class="indicator-dot"></div>
                         <div class="indicator-label">Likely Deepfake</div>
+                    </div>
+                </div>
+
+                <div class="analysis-details-accordion">
+                    <button class="accordion-button" style="
+                        width: 100%;
+                        padding: 10px;
+                        background: #f8f9fa;
+                        border: 1px solid #dee2e6;
+                        border-radius: 4px;
+                        margin: 10px 0;
+                        cursor: pointer;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        font-size: 14px;
+                    ">
+                        <span>View Analysis Details</span>
+                        <span class="accordion-icon">▼</span>
+                    </button>
+                    
+                    <div class="accordion-content" style="display: none; padding: 10px; background: #fff; border: 1px solid #dee2e6; border-radius: 4px; font-size: 12px;">
+                        <div class="details-section">
+                            <h4 style="margin: 5px 0; color: #495057;">Model Details</h4>
+                            <p><strong>Selected Model:</strong> ${modelUsed}</p>
+                            <p><strong>Logit Value:</strong> ${analysis.logit.toFixed(
+                              4
+                            )}</p>
+                            <p><strong>Raw Probability:</strong> ${analysis.probability.toFixed(
+                              6
+                            )}</p>
+                            
+                            <h4 style="margin: 10px 0 5px; color: #495057;">Image Information</h4>
+                            <p><strong>File Name:</strong> ${
+                              results.originalFileName
+                            }</p>
+                            <p><strong>File Size:</strong> ${(
+                              results.fileSize / 1024
+                            ).toFixed(2)} KB</p>
+                            <p><strong>Dimensions:</strong> ${
+                              results.metadata.sharp.width
+                            }x${results.metadata.sharp.height}</p>
+                            <p><strong>Format:</strong> ${results.metadata.sharp.format.toUpperCase()}</p>
+                            
+                            <h4 style="margin: 10px 0 5px; color: #495057;">Analysis Comparison</h4>
+                            <p><strong>Standard Model:</strong> ${(
+                              standardAnalysis.probability * 100
+                            ).toFixed(1)}% probability</p>
+                            <p><strong>UFD Model:</strong> ${(
+                              ufdAnalysis.probability * 100
+                            ).toFixed(1)}% probability</p>
+                            
+                            <h4 style="margin: 10px 0 5px; color: #495057;">Technical Details</h4>
+                            <p><strong>Image Hash:</strong> ${
+                              results.imageHash
+                            }</p>
+                            <p><strong>Perceptual Hash:</strong> ${
+                              results.pHash
+                            }</p>
+                            <p><strong>Upload Date:</strong> ${new Date(
+                              results.uploadDate
+                            ).toLocaleString()}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -935,6 +1001,17 @@
           } else if (length >= 75) {
             charCounter.classList.add("near-limit");
           }
+        });
+
+        // Add accordion functionality
+        const accordionButton = popup.querySelector(".accordion-button");
+        const accordionContent = popup.querySelector(".accordion-content");
+        const accordionIcon = popup.querySelector(".accordion-icon");
+
+        accordionButton.addEventListener("click", () => {
+          const isOpen = accordionContent.style.display === "block";
+          accordionContent.style.display = isOpen ? "none" : "block";
+          accordionIcon.textContent = isOpen ? "▼" : "▲";
         });
       } else {
         popup.innerHTML = `
@@ -1410,6 +1487,47 @@
 
     .char-counter.at-limit {
         color: #dc3545;
+    }
+
+    .analysis-details-accordion {
+        margin: 15px 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .accordion-button:hover {
+        background: #e9ecef !important;
+    }
+
+    .accordion-content {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .details-section p {
+        margin: 5px 0;
+        color: #212529;
+    }
+
+    .details-section strong {
+        color: #495057;
+    }
+
+    .accordion-content::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .accordion-content::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+
+    .accordion-content::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+
+    .accordion-content::-webkit-scrollbar-thumb:hover {
+        background: #555;
     }
   `;
 
