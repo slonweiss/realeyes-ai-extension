@@ -615,8 +615,8 @@
           : ufdAnalysis;
       const modelUsed =
         standardAnalysis.probability > ufdAnalysis.probability
-          ? "Standard Model"
-          : "UFD Model";
+          ? "DMImageDetection Model"
+          : "UniversalFakeDetect Model";
 
       if (analysis) {
         const probability = (analysis.probability * 100).toFixed(1);
@@ -693,24 +693,11 @@
                 </div>
 
                 <div class="analysis-details-accordion">
-                    <button class="accordion-button" style="
-                        width: 100%;
-                        padding: 10px;
-                        background: #f8f9fa;
-                        border: 1px solid #dee2e6;
-                        border-radius: 4px;
-                        margin: 10px 0;
-                        cursor: pointer;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        font-size: 14px;
-                    ">
+                    <button class="accordion-button">
                         <span>View Analysis Details</span>
-                        <span class="accordion-icon">▼</span>
                     </button>
                     
-                    <div class="accordion-content" style="display: none; padding: 10px; background: #fff; border: 1px solid #dee2e6; border-radius: 4px; font-size: 12px;">
+                    <div class="accordion-content">
                         <div class="details-section">
                             <h4 style="margin: 5px 0; color: #495057;">Model Details</h4>
                             <p><strong>Selected Model:</strong> ${modelUsed}</p>
@@ -734,10 +721,10 @@
                             <p><strong>Format:</strong> ${results.metadata.sharp.format.toUpperCase()}</p>
                             
                             <h4 style="margin: 10px 0 5px; color: #495057;">Analysis Comparison</h4>
-                            <p><strong>Standard Model:</strong> ${(
+                            <p><strong>DMImageDetection Model:</strong> ${(
                               standardAnalysis.probability * 100
                             ).toFixed(1)}% probability</p>
-                            <p><strong>UFD Model:</strong> ${(
+                            <p><strong>UniversalFakeDetect Model:</strong> ${(
                               ufdAnalysis.probability * 100
                             ).toFixed(1)}% probability</p>
                             
@@ -1006,12 +993,10 @@
         // Add accordion functionality
         const accordionButton = popup.querySelector(".accordion-button");
         const accordionContent = popup.querySelector(".accordion-content");
-        const accordionIcon = popup.querySelector(".accordion-icon");
 
         accordionButton.addEventListener("click", () => {
           const isOpen = accordionContent.style.display === "block";
           accordionContent.style.display = isOpen ? "none" : "block";
-          accordionIcon.textContent = isOpen ? "▼" : "▲";
         });
       } else {
         popup.innerHTML = `
@@ -1490,12 +1475,28 @@
     }
 
     .analysis-details-accordion {
-        margin: 15px 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        margin: 5px 0 !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    }
+
+    .accordion-button {
+        width: 100% !important;
+        padding: 8px 16px !important;
+        background: #2196f3 !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 4px !important;
+        margin: 8px 0 !important;
+        cursor: pointer !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        font-size: 14px !important;
+        transition: background-color 0.2s ease !important;
     }
 
     .accordion-button:hover {
-        background: #e9ecef !important;
+        background: #1976d2 !important;
     }
 
     .accordion-content {
