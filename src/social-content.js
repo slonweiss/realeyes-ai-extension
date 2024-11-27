@@ -605,7 +605,14 @@
             </div>
         `;
     } else {
-      const analysis = results.sageMakerAnalysis;
+      // Get the analysis with higher probability
+      const standardAnalysis = results.sageMakerAnalysis;
+      const ufdAnalysis = results.sageMakerAnalysisUFD;
+
+      const analysis =
+        standardAnalysis.probability > ufdAnalysis.probability
+          ? standardAnalysis
+          : ufdAnalysis;
 
       if (analysis) {
         const probability = (analysis.probability * 100).toFixed(1);
