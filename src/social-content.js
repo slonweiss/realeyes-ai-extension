@@ -697,28 +697,32 @@
                         </button>
                     </div>
                     <div class="feedback-comment" style="display: none;">
-                        <textarea 
-                            placeholder="Tell us why (optional)" 
-                            maxlength="500" 
-                            style="
-                                width: calc(100% - 20px);
-                                max-width: 280px;
-                                margin: 10px auto;
-                                padding: 8px;
-                                border: 1px solid #ccc;
-                                border-radius: 4px;
-                                resize: vertical;
-                                min-height: 60px;
-                                max-height: 120px;
-                                font-family: inherit;
-                                font-size: 14px;
-                                color: #333;
-                                background-color: #fff;
-                                box-sizing: border-box;
-                            "
-                        ></textarea>
+                        <div class="textarea-container">
+                            <textarea 
+                                placeholder="Tell us why (optional)" 
+                                maxlength="100" 
+                                style="
+                                    width: calc(100% - 20px);
+                                    max-width: 280px;
+                                    margin: 10px auto;
+                                    padding: 8px;
+                                    padding-bottom: 25px;
+                                    border: 1px solid #ccc;
+                                    border-radius: 4px;
+                                    resize: none;
+                                    min-height: 60px;
+                                    max-height: 120px;
+                                    font-family: inherit;
+                                    font-size: 14px;
+                                    color: #333;
+                                    background-color: #fff;
+                                    box-sizing: border-box;
+                                "
+                            ></textarea>
+                            <div class="char-counter">0/100 characters</div>
+                        </div>
                         <button class="submit-feedback-btn" style="
-                            margin-top: 10px;
+                            margin-top: 5px;
                             padding: 8px 16px;
                             background-color: #4CAF50;
                             color: white;
@@ -752,9 +756,10 @@
 
         // Add event listeners for feedback buttons
         const feedbackBtns = popup.querySelectorAll(".feedback-btn");
-        const feedbackComment = popup.querySelector("textarea");
+        const feedbackComment = popup.querySelector(".feedback-comment"); // Changed from textarea to container
         const submitBtn = popup.querySelector(".submit-feedback-btn");
         const textarea = popup.querySelector("textarea");
+        const charCounter = popup.querySelector(".char-counter");
 
         feedbackBtns.forEach((btn) => {
           btn.addEventListener("click", () => {
@@ -763,8 +768,22 @@
             // Add active class to clicked button
             btn.classList.add("active");
             // Show comment section
-            feedbackComment.style.display = "block";
+            feedbackComment.style.display = "block"; // Changed from textarea to container
           });
+        });
+
+        textarea.addEventListener("input", () => {
+          const length = textarea.value.length;
+          const remaining = 100 - length;
+          charCounter.textContent = `${length}/100 characters`;
+
+          // Update counter color based on remaining characters
+          charCounter.classList.remove("near-limit", "at-limit");
+          if (length >= 90) {
+            charCounter.classList.add("at-limit");
+          } else if (length >= 75) {
+            charCounter.classList.add("near-limit");
+          }
         });
 
         submitBtn.addEventListener("click", async () => {
@@ -895,6 +914,20 @@
           feedbackBtns: popup.querySelectorAll(".feedback-btn"),
           submitBtn: popup.querySelector(".submit-feedback-btn"),
           feedbackComment: popup.querySelector("textarea"),
+        });
+
+        textarea.addEventListener("input", () => {
+          const length = textarea.value.length;
+          const remaining = 100 - length;
+          charCounter.textContent = `${length}/100 characters`;
+
+          // Update counter color based on remaining characters
+          charCounter.classList.remove("near-limit", "at-limit");
+          if (length >= 90) {
+            charCounter.classList.add("at-limit");
+          } else if (length >= 75) {
+            charCounter.classList.add("near-limit");
+          }
         });
       } else {
         popup.innerHTML = `
@@ -1346,6 +1379,30 @@
 
     .feedback-section p {
       color: #333 !important;
+    }
+
+    .textarea-container {
+        position: relative;
+        width: 100%;
+        max-width: 280px;
+        margin: 0 auto;
+    }
+
+    .char-counter {
+        position: absolute;
+        bottom: 20px;
+        right: 15px;
+        font-size: 10px;
+        color: #666;
+        transition: color 0.3s ease;
+    }
+
+    .char-counter.near-limit {
+        color: #ffa500;
+    }
+
+    .char-counter.at-limit {
+        color: #dc3545;
     }
   `;
 
