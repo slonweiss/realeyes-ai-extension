@@ -2,6 +2,8 @@
 
 A Chrome extension that adds an overlay icon on images across various social media platforms to analyze them for potential deepfake manipulation.
 
+📦 [Install from Chrome Web Store](https://chromewebstore.google.com/detail/realeyesai/begpcdlgbbjihlilieokcgnlcmeondog)
+
 ## Features
 
 - Image analysis for deepfake detection
@@ -17,6 +19,12 @@ A Chrome extension that adds an overlay icon on images across various social med
 - Privacy-focused consent management
 
 ## Installation
+
+### Option 1: Chrome Web Store (Recommended)
+
+Visit the [RealEyes.ai Chrome Web Store page](https://chromewebstore.google.com/detail/realeyesai/begpcdlgbbjihlilieokcgnlcmeondog) and click "Add to Chrome"
+
+### Option 2: Manual Installation
 
 1. Clone this repository
 
