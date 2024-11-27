@@ -438,28 +438,40 @@
       if (popup.style.display === "none") return;
 
       const overlayRect = target.getBoundingClientRect();
+      const scrollY = window.scrollY || window.pageYOffset;
 
       // Calculate position relative to the overlay icon
-      let left = overlayRect.right + window.pageXOffset + 10;
-      let top = overlayRect.top + window.pageYOffset;
+      let left = overlayRect.right + 10;
+      let top = overlayRect.top + scrollY; // Add scroll offset back
 
       // If popup would go off-screen to the right, position it to the left
-      if (
-        left + popup.offsetWidth >
-        window.innerWidth - 10 + window.pageXOffset
-      ) {
-        left = overlayRect.left + window.pageXOffset - popup.offsetWidth - 10;
+      if (left + popup.offsetWidth > window.innerWidth - 10) {
+        left = overlayRect.left - popup.offsetWidth - 10;
       }
 
       // Ensure popup stays within viewport bounds vertically
       const maxTop =
-        window.innerHeight + window.pageYOffset - popup.offsetHeight - 10;
-      top = Math.max(10 + window.pageYOffset, Math.min(top, maxTop));
+        document.documentElement.scrollHeight - popup.offsetHeight - 10;
+      top = Math.max(10, Math.min(top, maxTop));
 
-      popup.style.position = "absolute";
+      popup.style.position = "absolute"; // Change back to absolute
       popup.style.left = `${left}px`;
       popup.style.top = `${top}px`;
     };
+
+    // Add scroll event listener to hide popup when image is out of view
+    const visibilityObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) {
+            popup.style.display = "none";
+          }
+        });
+      },
+      { threshold: 0 }
+    );
+
+    visibilityObserver.observe(target);
 
     // Initial positioning
     setTimeout(updatePopupPosition, 0);
@@ -1362,175 +1374,7 @@
   setupExtension();
 
   // Add CSS rules
-  const cssRules = `
-    .overlay:state(secondary-text-color) {
-      color: var(--secondary-text-color);
-    }
-    
-    .image-fill:state(webkit-fill-available) {
-      width: -webkit-fill-available;
-    }
-
-    .feedback-btn {
-      padding: 8px 16px;
-      margin: 0 5px;
-      background: none;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .feedback-btn:hover {
-      background-color: #f0f0f0;
-    }
-
-    .feedback-btn.active {
-      background-color: #e0e0e0;
-      border-color: #999;
-    }
-
-    .feedback-btn span {
-      font-size: 18px;
-    }
-
-    .spinner {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border: 2px solid #ffffff;
-      border-radius: 50%;
-      border-top-color: transparent;
-      animation: spin 1s linear infinite;
-      margin-right: 8px;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    .feedback-error {
-      color: #dc3545;
-      margin: 8px 0;
-      font-size: 14px;
-    }
-
-    .feedback-success,
-    .feedback-already-submitted {
-      text-align: center;
-      padding: 10px;
-    }
-
-    .icon-container {
-      margin: 0 auto;
-      width: 46px;
-      height: 46px;
-    }
-
-    .status-icon {
-      width: 100%;
-      height: 100%;
-    }
-
-    .feedback-title {
-      color: #4CAF50;
-      font-size: 1.2em;
-      margin: 10px 0 5px;
-    }
-
-    .feedback-message {
-      color: #666;
-      font-size: 0.9em;
-      margin: 5px 0;
-    }
-
-    .feedback-section p {
-      color: #333 !important;
-    }
-
-    .textarea-container {
-        position: relative;
-        width: 100%;
-        max-width: 280px;
-        margin: 0 auto;
-    }
-
-    .char-counter {
-        position: absolute;
-        bottom: 17px;
-        right: 15px;
-        font-size: 10px;
-        color: #666;
-        transition: color 0.3s ease;
-    }
-
-    .char-counter.near-limit {
-        color: #ffa500;
-    }
-
-    .char-counter.at-limit {
-        color: #dc3545;
-    }
-
-    .analysis-details-accordion {
-        margin: 5px 0 !important;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-    }
-
-    .accordion-button {
-        width: 100% !important;
-        padding: 8px 16px !important;
-        background: #2196f3 !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 4px !important;
-        margin: 8px 0 !important;
-        cursor: pointer !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        font-size: 14px !important;
-        transition: background-color 0.2s ease !important;
-    }
-
-    .accordion-button:hover {
-        background: #1976d2 !important;
-    }
-
-    .accordion-content {
-        max-height: 300px;
-        overflow-y: auto;
-    }
-
-    .details-section p {
-        margin: 5px 0;
-        color: #212529;
-    }
-
-    .details-section strong {
-        color: #495057;
-    }
-
-    .accordion-content::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    .accordion-content::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 4px;
-    }
-
-    .accordion-content::-webkit-scrollbar-thumb {
-        background: #888;
-        border-radius: 4px;
-    }
-
-    .accordion-content::-webkit-scrollbar-thumb:hover {
-        background: #555;
-    }
-  `;
+  const cssRules = ``;
 
   const style = document.createElement("style");
   style.innerHTML = cssRules;
