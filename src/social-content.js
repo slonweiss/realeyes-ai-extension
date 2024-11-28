@@ -984,42 +984,47 @@
               },
               (response) => {
                 console.log("Feedback submission response:", response);
+                const feedbackSection =
+                  popup.querySelector(".feedback-section");
+                feedbackSection.style.marginTop = "0";
+
                 if (response.success) {
-                  // Show success message without animations
-                  const feedbackSection =
-                    popup.querySelector(".feedback-section");
-                  feedbackSection.style.marginTop = "0";
+                  let iconColor, title, message;
+
+                  switch (response.data.message) {
+                    case "Feedback already received":
+                      iconColor = "#3498db"; // Primary blue
+                      title = "Already Submitted";
+                      message =
+                        "You've already provided feedback for this image";
+                      break;
+                    case "Feedback updated successfully":
+                      iconColor = "#2196F3"; // Material blue
+                      title = "Feedback Updated";
+                      message = "Your feedback has been updated successfully";
+                      break;
+                    case "Feedback submitted successfully":
+                    default:
+                      iconColor = "#4CAF50"; // Green
+                      title = "Thank you!";
+                      message = "Your feedback helps improve our analyses";
+                      break;
+                  }
+
                   feedbackSection.innerHTML = `
                     <div class="feedback-success">
-                      <div class="icon-container">
-                        <svg class="status-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-                          <circle cx="26" cy="26" r="25" fill="none" stroke="#4CAF50" stroke-width="2"/>
-                          <path fill="none" stroke="#4CAF50" stroke-width="2" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
-                        </svg>
-                      </div>
-                      <h3 class="feedback-title">Thank you!</h3>
-                      <p class="feedback-message">Your feedback helps improve our analyses</p>
+                        <div class="icon-container">
+                            <svg class="status-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                                <circle cx="26" cy="26" r="25" fill="none" stroke="${iconColor}" stroke-width="2"/>
+                                <path fill="none" stroke="${iconColor}" stroke-width="2" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                            </svg>
+                        </div>
+                        <h3 class="feedback-title" style="color: ${iconColor}">${title}</h3>
+                        <p class="feedback-message">${message}</p>
                     </div>
-                  `;
-                } else if (response.alreadySubmitted) {
-                  // Show already submitted message without animations
-                  const feedbackSection =
-                    popup.querySelector(".feedback-section");
-                  feedbackSection.style.marginTop = "0";
-                  feedbackSection.innerHTML = `
-                    <div class="feedback-already-submitted">
-                      <div class="icon-container">
-                        <svg class="status-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-                          <circle cx="26" cy="26" r="25" fill="none" stroke="#3498db" stroke-width="2"/>
-                          <path fill="none" stroke="#3498db" stroke-width="2" d="M26 15v2m0 7v13"/>
-                        </svg>
-                      </div>
-                      <h3 class="feedback-title" style="color: #3498db;">Already Submitted</h3>
-                      <p class="feedback-message">You've already provided feedback for this image</p>
-                    </div>
-                  `;
+                `;
                 } else {
-                  // Existing error handling
+                  // Error handling
                   submitBtn.disabled = false;
                   submitBtn.innerHTML = "Submit Feedback";
 
