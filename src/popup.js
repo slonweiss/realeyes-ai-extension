@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const settingsContent = document.getElementById("settingsContent");
   const loginButton = document.getElementById("login");
   const saveButton = document.getElementById("save");
+  const logoutButton = document.getElementById("logoutButton");
 
   console.log("Popup script loaded");
 
@@ -44,6 +45,28 @@ document.addEventListener("DOMContentLoaded", function () {
       showLogin();
     }
   });
+
+  function checkExistingCookie() {
+    return new Promise((resolve) => {
+      chrome.cookies.get(
+        {
+          url: "https://realeyes.ai",
+          name: "opp_access_token",
+        },
+        (cookie) => {
+          if (cookie && cookie.value) {
+            // Store the cookie value as authToken
+            chrome.storage.local.set({ authToken: cookie.value }, () => {
+              console.log("Auth token set from existing cookie");
+              resolve(true);
+            });
+          } else {
+            resolve(false);
+          }
+        }
+      );
+    });
+  }
 
   function showLogin() {
     console.log("Showing login");
@@ -147,10 +170,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Event listener for login button
   if (loginButton) {
-    loginButton.addEventListener("click", function () {
+    loginButton.addEventListener("click", async function () {
       console.log("Login button clicked");
-      chrome.runtime.sendMessage({ action: "initiateAuthentication" });
-      window.close(); // Close the popup after initiating login
+      const hasCookie = await checkExistingCookie();
+      if (hasCookie) {
+        showSettings();
+      } else {
+        chrome.tabs.create({ url: "https://realeyes.ai/upload-image" });
+        window.close();
+      }
     });
   } else {
     console.error("Login button not found");
@@ -202,4 +230,26 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
   });
+
+  // Add logout button handler
+  if (logoutButton) {
+    logoutButton.addEventListener("click", function () {
+      // Clear local storage auth token
+      chrome.storage.local.remove("authToken", function () {
+        console.log("Auth token removed");
+
+        // Construct logout URL with proper endpoint
+        const logoutUrl = new URL("https://signin.realeyes.ai/logout");
+        logoutUrl.searchParams.append(
+          "client_id",
+          "49nfihgrtdm78kf6su5brla4o5"
+        );
+        logoutUrl.searchParams.append("logout_uri", "https://realeyes.ai");
+
+        // Open logout URL in new tab and close popup
+        chrome.tabs.create({ url: logoutUrl.toString() });
+        window.close();
+      });
+    });
+  }
 });

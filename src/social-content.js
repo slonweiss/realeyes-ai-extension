@@ -252,37 +252,145 @@
       // Replace emoji with the image
       overlay.appendChild(iconImg);
 
-      overlay.onclick = (e) => {
+      overlay.onclick = async (e) => {
         e.stopPropagation();
         e.preventDefault();
 
-        // First try to find popup by image src
-        let existingPopup = document.querySelector(
-          `.consent-popup[data-for-image="${img.src}"]`
-        );
-
-        // If not found, try to find by overlay ID
-        if (!existingPopup) {
-          existingPopup = document.querySelector(
-            `.consent-popup[data-overlay-id="${uniqueId}"]`
-          );
-        }
-
-        // If popup exists, remove it
-        if (existingPopup) {
-          existingPopup.remove();
-          return;
-        }
-
         const highestQualityUrl = getHighestQualityImageUrl(img);
+        const uniqueId = `overlay-${index}-${Date.now()}`;
 
-        if (highestQualityUrl) {
-          showConsentPopup(overlay, highestQualityUrl, uniqueId);
-        } else {
-          showMessage("No suitable image found.", "error");
+        try {
+          const { authToken } = await chrome.storage.local.get(["authToken"]);
+
+          if (!authToken) {
+            // Remove any existing popups
+            const existingPopups = document.querySelectorAll(".consent-popup");
+            existingPopups.forEach((popup) => popup.remove());
+
+            const authPopup = document.createElement("div");
+            authPopup.className = "consent-popup";
+            authPopup.innerHTML = `
+              <div class="close-x">×</div>
+              <p class="consent-message">Please log in to analyze images</p>
+              <div class="consent-buttons">
+                <button class="confirm-btn">Log In</button>
+                <button class="cancel-btn">Cancel</button>
+              </div>
+              <div style="color: #666; font-size: 12px; margin-top: 10px; text-align: center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+                </svg>
+                Or click the RealEyes icon in your browser toolbar
+              </div>
+            `;
+
+            document.body.appendChild(authPopup);
+
+            // Position the popup relative to the overlay icon
+            const updatePopupPosition = () => {
+              const overlayRect = overlay.getBoundingClientRect();
+              const scrollY = window.scrollY || window.pageYOffset;
+
+              // Calculate position relative to the overlay icon
+              let left = overlayRect.right + 10;
+              let top = overlayRect.top + scrollY;
+
+              // If popup would go off-screen to the right, position it to the left
+              if (left + authPopup.offsetWidth > window.innerWidth - 10) {
+                left = overlayRect.left - authPopup.offsetWidth - 10;
+              }
+
+              // Ensure popup stays within viewport bounds vertically
+              const maxTop =
+                document.documentElement.scrollHeight -
+                authPopup.offsetHeight -
+                10;
+              top = Math.max(10, Math.min(top, maxTop));
+
+              authPopup.style.position = "absolute";
+              authPopup.style.left = `${left}px`;
+              authPopup.style.top = `${top}px`;
+            };
+
+            // Initial positioning
+            setTimeout(updatePopupPosition, 0);
+
+            // Update position on window resize and scroll
+            const debouncedUpdate = debounce(updatePopupPosition, 100);
+            window.addEventListener("resize", debouncedUpdate);
+            window.addEventListener("scroll", debouncedUpdate);
+
+            // Add click handlers
+            const closeButton = authPopup.querySelector(".close-x");
+            const loginButton = authPopup.querySelector(".confirm-btn");
+            const cancelButton = authPopup.querySelector(".cancel-btn");
+
+            const cleanup = () => {
+              window.removeEventListener("resize", debouncedUpdate);
+              window.removeEventListener("scroll", debouncedUpdate);
+              authPopup.remove();
+            };
+
+            // Close handlers
+            closeButton.addEventListener("click", cleanup);
+            loginButton.addEventListener("click", () => {
+              // Send message to background script to open popup
+              chrome.runtime.sendMessage(
+                { action: "openExtensionPopup" },
+                (response) => {
+                  if (chrome.runtime.lastError) {
+                    // Fallback to opening the website if popup fails
+                    window.open("https://realeyes.ai/upload-image", "_blank");
+                  }
+                }
+              );
+              authPopup.remove();
+            });
+
+            // Cancel handler
+            cancelButton.addEventListener("click", () => {
+              authPopup.remove();
+            });
+
+            // Close when clicking outside
+            document.addEventListener("click", function closePopup(event) {
+              if (
+                !authPopup.contains(event.target) &&
+                !overlay.contains(event.target)
+              ) {
+                cleanup();
+                document.removeEventListener("click", closePopup);
+              }
+            });
+
+            // Create an Intersection Observer for the overlay
+            const observer = new IntersectionObserver(
+              (entries) => {
+                entries.forEach((entry) => {
+                  if (!entry.isIntersecting) {
+                    cleanup();
+                  }
+                });
+              },
+              { threshold: 0.1 }
+            );
+
+            observer.observe(overlay);
+
+            return;
+          }
+
+          // If we have a valid token, proceed with existing logic
+          if (highestQualityUrl) {
+            showConsentPopup(overlay, highestQualityUrl, uniqueId);
+          } else {
+            showMessage("No suitable image found.", "error");
+          }
+        } catch (error) {
+          console.error("Authentication check failed:", error);
+          showMessage("An error occurred. Please try again.", "error");
         }
       };
-
       img.parentElement.appendChild(overlay);
 
       overlay.addEventListener("mouseenter", () => {
@@ -526,11 +634,61 @@
       const authToken = result.authToken;
 
       if (!authToken) {
-        displayAnalysisResults(
-          popup,
-          "Authentication required. Please log in and try again.",
-          "error"
-        );
+        popup.innerHTML = `
+          <div class="error-container" style="text-align: center; padding: 15px;">
+            <div class="close-x">×</div>
+            <p style="margin: 0 0 15px;">Please log in to use the extension.</p>
+            <button id="loginButton" style="
+              width: 100%;
+              padding: 10px;
+              margin: 0 auto;
+              display: block;
+              background-color: #2196f3;
+              color: white;
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+              transition: background-color 0.3s;
+              font-size: 14px;
+            ">Log In</button>
+          </div>
+        `;
+
+        // Add hover effect and click handler for the login button
+        const loginButton = popup.querySelector("#loginButton");
+        loginButton.addEventListener("mouseover", () => {
+          loginButton.style.backgroundColor = "#0d8bf2";
+        });
+        loginButton.addEventListener("mouseout", () => {
+          loginButton.style.backgroundColor = "#2196f3";
+        });
+        loginButton.addEventListener("click", () => {
+          // Check for existing cookie first
+          chrome.cookies.get(
+            {
+              url: "https://realeyes.ai",
+              name: "opp_access_token",
+            },
+            function (cookie) {
+              if (cookie && cookie.value) {
+                // If cookie exists, validate and store it
+                chrome.storage.local.set(
+                  { authToken: cookie.value },
+                  function () {
+                    // Refresh the popup content since we now have a valid token
+                    popup.remove();
+                    addOrUpdateOverlayToImages(); // Refresh overlays with new auth state
+                  }
+                );
+              } else {
+                // No valid cookie found, redirect to login
+                window.open("https://realeyes.ai/upload-image", "_blank");
+                popup.remove();
+              }
+            }
+          );
+        });
+
         return;
       }
 
@@ -1557,4 +1715,54 @@
         <span class="detail-value">${value}</span>
     </div>
   `;
+
+  // Helper function to show auth popup
+  function showAuthPopup() {
+    const authPopup = document.createElement("div");
+    authPopup.className = "consent-popup";
+    authPopup.innerHTML = `
+      <div class="close-x">×</div>
+      <p class="consent-message">Please log in to analyze images</p>
+      <div class="consent-buttons">
+        <button class="confirm-btn">Log In</button>
+        <button class="cancel-btn">Cancel</button>
+      </div>
+      <div style="color: #666; font-size: 12px; margin-top: 10px; text-align: center;">
+        <svg width="16" height="16" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+        </svg>
+        Or click the RealEyes icon in your browser toolbar
+      </div>
+    `;
+
+    document.body.appendChild(authPopup);
+
+    // Add hover effect and click handler for the login button
+    const loginButton = authPopup.querySelector("#loginButton");
+    loginButton.addEventListener("mouseover", () => {
+      loginButton.style.backgroundColor = "#0d8bf2";
+    });
+    loginButton.addEventListener("mouseout", () => {
+      loginButton.style.backgroundColor = "#2196f3";
+    });
+    loginButton.addEventListener("click", () => {
+      // Send message to background script to open popup
+      chrome.runtime.sendMessage(
+        { action: "openExtensionPopup" },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            // Fallback to opening the website if popup fails
+            window.open("https://realeyes.ai/upload-image", "_blank");
+          }
+        }
+      );
+      authPopup.remove();
+    });
+
+    // Add click handler for close button
+    const closeButton = authPopup.querySelector(".close-x");
+    closeButton.addEventListener("click", () => {
+      authPopup.remove();
+    });
+  }
 })();
