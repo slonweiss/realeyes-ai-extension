@@ -499,7 +499,12 @@
         const storeData = storeDataCheckbox ? storeDataCheckbox.checked : false;
 
         // Remove ALL existing content from popup
-        popup.innerHTML = '<div class="loading-indicator">Analyzing...</div>';
+        popup.innerHTML = `
+        <div class="loading-indicator">
+            <div class="spinner"></div>
+            <span>Analyzing...</span>
+        </div>
+      `;
 
         // Send image for analysis using the existing popup
         await sendImageForAnalysis(imageUrl, popup, storeData);
@@ -767,7 +772,7 @@
                                class="model-info-link" 
                                target="_blank"
                                rel="noopener noreferrer">
-                               Learn more about our detection models →
+                               Learn more about the detection models →
                             </a>
                             
                             <div class="details-grid">
@@ -784,7 +789,7 @@
                                 ${detailRow(
                                   "Dimensions",
                                   `${results.metadata.sharp.width}x${results.metadata.sharp.height}`,
-                                  "Width and height of the image in pixels"
+                                  "Width & height of the image in pixels"
                                 )}
                                 ${detailRow(
                                   "Format",
@@ -804,7 +809,7 @@
                                 ${detailRow(
                                   "Bit Depth",
                                   results.metadata.sharp.depth,
-                                  "Bits per channel used to represent colors"
+                                  "Number of bits used per color channel. Higher values (e.g., 8-bit, 16-bit) mean more possible colors and smoother gradients"
                                 )}
                                 ${detailRow(
                                   "Resolution",
@@ -821,7 +826,7 @@
                                   results.metadata.sharp.isProgressive
                                     ? "Yes"
                                     : "No",
-                                  "Whether the image uses progressive loading"
+                                  "A technique where the image loads gradually, starting with a low-quality version that becomes clearer over time. Improves perceived loading speed on slower connections"
                                 )}
                                 ${detailRow(
                                   "Has Alpha Channel",
@@ -831,21 +836,21 @@
                                   "Whether the image contains transparency"
                                 )}
                                 ${detailRow(
-                                  "Has Color Profile",
+                                  "Color Profile",
                                   results.metadata.sharp.hasProfile
                                     ? "Yes"
                                     : "No",
-                                  "Whether the image contains a color profile"
+                                  "A set of data that defines how colors should be displayed. Helps ensure consistent color appearance across different devices and screens"
                                 )}
                                 ${detailRow(
                                   "Image Hash",
                                   results.imageHash,
-                                  "Unique SHA-256 hash of the image content"
+                                  "A unique digital fingerprint of the image. It can be used to identify identical copies of this image, even if renamed"
                                 )}
                                 ${detailRow(
                                   "Perceptual Hash",
                                   results.pHash,
-                                  "Perceptual hash used for finding similar images"
+                                  "A special type of image fingerprint that can identify visually similar images, even if they've been slightly modified, resized, or compressed"
                                 )}
                                 ${detailRow(
                                   "Upload Date",
@@ -855,7 +860,7 @@
                                 ${detailRow(
                                   "Origin Website",
                                   results.originWebsites?.[0] || "Unknown",
-                                  "Website where the image was found"
+                                  "Website where the image originated"
                                 )}
                             </div>
                         </div>

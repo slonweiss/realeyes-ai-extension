@@ -58,7 +58,7 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif !important;
   color: #333333 !important;
-  width: 320px !important;
+  width: 340px !important;
   display: flex !important;
   flex-direction: column !important;
   box-sizing: border-box !important;
@@ -205,7 +205,7 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif !important;
   color: #333333 !important;
-  width: 320px !important;
+  width: 340px !important;
   display: flex !important;
   flex-direction: column !important;
   box-sizing: border-box !important;
@@ -381,6 +381,9 @@
   font-size: 12px !important;
   max-height: 300px !important;
   overflow-y: auto !important;
+  overflow-x: hidden !important;
+  width: auto !important;
+  max-width: 100% !important;
 }
 
 .details-section {
@@ -753,57 +756,44 @@
   background: #fff !important;
   border-radius: 8px !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  width: 100% !important;
+  overflow-x: hidden !important;
 }
 
 .detail-row {
   display: grid !important;
-  grid-template-columns: 100px 1fr !important;
+  grid-template-columns: 120px 1fr !important;
   align-items: center !important;
   padding: 4px 8px !important;
   border-bottom: 1px solid #f0f0f0 !important;
+  min-width: 0 !important;
+  gap: 8px !important;
 }
 
 .detail-label {
-  position: relative !important;
   color: #6c757d !important;
   font-size: 13px !important;
   font-weight: 500 !important;
   cursor: help !important;
+  white-space: nowrap !important;
+  position: relative !important;
 }
 
 .detail-value {
   color: #212529 !important;
   font-size: 13px !important;
-  word-break: break-all !important;
-  padding-left: 12px !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  padding: 0 !important;
+  justify-self: start !important;
 }
 
-.detail-label:hover::after {
-  content: attr(title) !important;
-  position: absolute !important;
-  right: calc(100% + 10px) !important;
-  top: 50% !important;
-  transform: translateY(-50%) !important;
-  padding: 6px 10px !important;
-  background-color: rgba(0, 0, 0, 0.8) !important;
-  color: white !important;
-  font-size: 12px !important;
-  border-radius: 4px !important;
-  white-space: nowrap !important;
-  z-index: 2147483650 !important;
-  pointer-events: none !important;
-}
-
-.detail-label:hover::before {
-  content: "" !important;
-  position: absolute !important;
-  right: calc(100% + 0px) !important;
-  top: 50% !important;
-  transform: translateY(-50%) !important;
-  border: 5px solid transparent !important;
-  border-left-color: rgba(0, 0, 0, 0.8) !important;
-  z-index: 2147483650 !important;
-  pointer-events: none !important;
+.detail-label::after,
+.detail-label::before {
+  display: none !important;
 }
 
 /* Update existing accordion-content styles */
@@ -827,4 +817,36 @@
 .model-info-link:hover {
   text-decoration: underline !important;
   color: #1976d2 !important;
+}
+
+/* Add new loading spinner styles */
+.loading-indicator {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  padding: 20px !important;
+  color: #333 !important;
+  font-size: 14px !important;
+}
+
+.spinner {
+  width: 20px !important;
+  height: 20px !important;
+  border: 3px solid #f3f3f3 !important;
+  border-top: 3px solid #2196f3 !important;
+  border-radius: 50% !important;
+  animation: spin 1s linear infinite !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  margin-right: 8px !important;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
