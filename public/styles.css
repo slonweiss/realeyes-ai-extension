@@ -531,21 +531,45 @@
 }
 
 .feedback-section {
-  margin-top: 5px !important;
+  margin-top: 20px !important;
   text-align: center !important;
+  background-color: #f8f9fa !important;
+  border-top: 1px solid #e9ecef !important;
+  padding: 0px 12px 12px 12px !important;
+  border-radius: 0 0 8px 8px !important;
+  margin: 15px -16px -16px -16px !important;
 }
 
 .feedback-section p {
-  margin-bottom: 5px !important;
-  color: #333 !important;
+  margin-bottom: 10px !important;
+  color: #495057 !important;
+  font-weight: 500 !important;
 }
 
 .feedback-buttons {
   margin: 5px 0 0 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  gap: 10px !important;
 }
 
-.feedback-comment {
-  margin-top: 5px !important;
+.feedback-btn {
+  padding: 8px 16px !important;
+  background-color: white !important;
+  border: 1px solid #dee2e6 !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.feedback-btn:hover {
+  background-color: #e9ecef !important;
+  border-color: #ced4da !important;
+}
+
+.feedback-btn.active {
+  background-color: #e7f5ff !important;
+  border-color: #74c0fc !important;
 }
 
 .analysis-title {
@@ -582,7 +606,7 @@
   border-radius: 4px;
   white-space: nowrap;
   z-index: 1000;
-  margin-left: -15px;
+  margin-left: -30px;
 }
 
 .request-count:hover::before {
