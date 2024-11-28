@@ -204,41 +204,30 @@
 .spinner {
   width: 20px !important;
   height: 20px !important;
-  border-width: 3px !important;
-  border-style: solid !important;
-  border-color: #f3f3f3 !important;
-  border-top-color: #2196f3 !important;
+  border: 3px solid #f3f3f3 !important;
+  border-top: 3px solid #2196f3 !important;
   border-radius: 50% !important;
   display: inline-block !important;
-  vertical-align: middle !important;
   margin-right: 8px !important;
-  animation-name: spinAnimation !important;
-  animation-duration: 1s !important;
-  animation-timing-function: linear !important;
-  animation-iteration-count: infinite !important;
-  animation-play-state: running !important;
-  -webkit-animation-name: spinAnimation !important;
-  -webkit-animation-duration: 1s !important;
-  -webkit-animation-timing-function: linear !important;
-  -webkit-animation-iteration-count: infinite !important;
-  -webkit-animation-play-state: running !important;
+  animation: spin 1s linear infinite !important;
+  -webkit-animation: spin 1s linear infinite !important;
 }
 
-@keyframes spinAnimation {
-  from {
-    transform: rotate(0deg) !important;
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
   }
-  to {
-    transform: rotate(360deg) !important;
+  100% {
+    transform: rotate(360deg);
   }
 }
 
-@-webkit-keyframes spinAnimation {
-  from {
-    -webkit-transform: rotate(0deg) !important;
+@-webkit-keyframes spin {
+  0% {
+    -webkit-transform: rotate(0deg);
   }
-  to {
-    -webkit-transform: rotate(360deg) !important;
+  100% {
+    -webkit-transform: rotate(360deg);
   }
 }
 
