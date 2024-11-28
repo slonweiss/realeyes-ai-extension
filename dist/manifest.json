@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "RealEyes.ai",
   "description": "Adds an overlay icon on images which allows the image to be analyzed for deepfake manipulation",
-  "version": "1.3",
+  "version": "1.5",
   "permissions": [
     "activeTab",
     "storage",

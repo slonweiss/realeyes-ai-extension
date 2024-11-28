@@ -241,17 +241,50 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
       (tabs) => {
         tabs.forEach((tab) => {
           console.log("Sending settingsChanged message to tab:", tab.id);
+          // First try to send message
           chrome.tabs.sendMessage(
             tab.id,
             { action: "settingsChanged", changes },
             (response) => {
               if (chrome.runtime.lastError) {
-                console.log(
-                  `Error sending settingsChanged message to tab ${tab.id}:`,
-                  chrome.runtime.lastError.message
+                console.log("Content script not found, injecting it first...");
+                // If failed, inject the content script and try again
+                chrome.scripting.executeScript(
+                  {
+                    target: { tabId: tab.id },
+                    files: ["social-content.js"],
+                  },
+                  () => {
+                    if (chrome.runtime.lastError) {
+                      console.log(
+                        "Could not inject content script:",
+                        chrome.runtime.lastError.message
+                      );
+                      return;
+                    }
+                    // Try sending the message again after injection
+                    setTimeout(() => {
+                      chrome.tabs.sendMessage(
+                        tab.id,
+                        { action: "settingsChanged", changes },
+                        (response) => {
+                          if (chrome.runtime.lastError) {
+                            console.log(
+                              "Still could not send message after injection:",
+                              chrome.runtime.lastError.message
+                            );
+                          } else {
+                            console.log(
+                              "Settings updated successfully after content script injection"
+                            );
+                          }
+                        }
+                      );
+                    }, 100); // Small delay to ensure script is loaded
+                  }
                 );
               } else {
-                console.log(`Settings updated successfully in tab ${tab.id}`);
+                console.log("Settings updated successfully");
               }
             }
           );

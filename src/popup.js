@@ -11,7 +11,6 @@ document.addEventListener("DOMContentLoaded", function () {
   ];
   const settingsContent = document.getElementById("settingsContent");
   const loginButton = document.getElementById("login");
-  const saveButton = document.getElementById("save");
   const logoutButton = document.getElementById("logoutButton");
 
   console.log("Popup script loaded");
@@ -224,33 +223,57 @@ document.addEventListener("DOMContentLoaded", function () {
     console.error("Enable overlay toggle not found");
   }
 
-  // Event listener for save button
-  if (saveButton) {
-    saveButton.addEventListener("click", function () {
-      console.log("Save settings button clicked");
-      const settings = {
-        enableOverlay: enableOverlayToggle.checked,
-      };
+  const body = document.querySelector("body");
+  const saveIndicator = document.createElement("div");
+  saveIndicator.className = "save-indicator";
+  saveIndicator.textContent = "Settings saved";
+  body.appendChild(saveIndicator);
 
-      siteToggles.forEach((site) => {
-        const siteToggle = document.getElementById(site);
-        settings[site] = siteToggle.checked;
-      });
+  // Replace the debouncedSave function with this instant save function
+  function saveSettings() {
+    const settings = {
+      enableOverlay: enableOverlayToggle.checked,
+    };
 
-      chrome.storage.sync.set(settings, function () {
-        console.log("Settings saved");
-        saveButton.textContent = "Saved!";
-        saveButton.classList.add("success");
-        setTimeout(() => {
-          saveButton.textContent = "Save Settings";
-          saveButton.classList.remove("success");
-        }, 2000);
-
-        updateContentScript(settings);
-      });
+    siteToggles.forEach((site) => {
+      const siteToggle = document.getElementById(site);
+      settings[site] = siteToggle.checked;
     });
-  } else {
-    console.error("Save button not found");
+
+    chrome.storage.sync.set(settings, function () {
+      console.log("Settings saved");
+      updateContentScript(settings);
+
+      // Show save indicator
+      saveIndicator.classList.add("show");
+
+      // Hide indicator after 1.5 seconds
+      setTimeout(() => {
+        saveIndicator.classList.remove("show");
+      }, 1500);
+    });
+  }
+
+  // Update event listeners to use instant save
+  if (enableOverlayToggle) {
+    enableOverlayToggle.addEventListener("change", () => {
+      updateToggleStates();
+      saveSettings();
+    });
+  }
+
+  // Update site toggle listeners
+  siteToggles.forEach((site) => {
+    const toggle = document.getElementById(site);
+    if (toggle) {
+      toggle.addEventListener("change", saveSettings);
+    }
+  });
+
+  // Remove any existing save button code since we're auto-saving
+  const saveButton = document.getElementById("save");
+  if (saveButton) {
+    saveButton.remove();
   }
 
   // Check for authentication status changes
