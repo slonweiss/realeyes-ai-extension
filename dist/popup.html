@@ -13,8 +13,8 @@
       h2,
       h3 {
         margin-top: 0;
-        margin-bottom: 10px;
-        font-size: 16px;
+        margin-bottom: 5px;
+        font-size: 20px;
       }
       .toggle-container {
         display: flex;
@@ -26,7 +26,7 @@
         position: relative;
         display: inline-block;
         width: 56px;
-        height: 24px;
+        height: 20px;
       }
       .switch input {
         opacity: 0;
@@ -62,8 +62,8 @@
       .slider:before {
         position: absolute;
         content: "";
-        height: 18px;
-        width: 18px;
+        height: 14px;
+        width: 14px;
         left: 3px;
         bottom: 3px;
         background-color: white;
@@ -75,7 +75,7 @@
         background-color: #2196f3;
       }
       input:checked + .slider:before {
-        transform: translateX(26px);
+        transform: translateX(32px);
       }
       #save,
       #login {
@@ -143,9 +143,9 @@
 
       /* Add these new styles */
       #logoutButton {
-        padding: 6px 12px;
-        font-size: 13px;
-        background-color: #d32f2f;
+        padding: 4px 8px;
+        font-size: 12px;
+        background-color: #b71c1c;
         color: white;
         border: none;
         border-radius: 4px;
@@ -153,7 +153,7 @@
         transition: background-color 0.3s;
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 4px;
       }
 
       #logoutButton::before,
@@ -165,13 +165,13 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
+        margin-bottom: 5px;
       }
 
       /* Dark mode updates */
       @media (prefers-color-scheme: dark) {
         #logoutButton {
-          background-color: #c62828;
+          background-color: #8b0000;
         }
         #logoutButton:hover {
           background-color: #b71c1c;
@@ -205,7 +205,7 @@
         </label>
       </div>
       <div id="settingsContent">
-        <h3>Websites to Enable:</h3>
+        <h3>Websites to Enable</h3>
         <div class="toggle-container">
           <span>Facebook</span>
           <label class="switch">
