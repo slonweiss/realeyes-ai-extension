@@ -107,6 +107,15 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateContentScript(settings) {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       if (tabs[0]) {
+        // Skip chrome:// and other protected URLs
+        if (
+          tabs[0].url.startsWith("chrome://") ||
+          tabs[0].url.startsWith("chrome-extension://")
+        ) {
+          console.log("Skipping protected URL:", tabs[0].url);
+          return;
+        }
+
         chrome.tabs.sendMessage(
           tabs[0].id,
           { action: "updateSettings", settings: settings },
@@ -121,13 +130,20 @@ document.addEventListener("DOMContentLoaded", function () {
                   files: ["social-content.js"],
                 },
                 () => {
+                  if (chrome.runtime.lastError) {
+                    console.log(
+                      "Cannot inject script into this tab:",
+                      chrome.runtime.lastError.message
+                    );
+                    return;
+                  }
                   // Retry sending the message after injecting the script
                   chrome.tabs.sendMessage(
                     tabs[0].id,
                     { action: "updateSettings", settings: settings },
                     (response) => {
                       if (chrome.runtime.lastError) {
-                        console.error(
+                        console.log(
                           "Error after injecting content script:",
                           chrome.runtime.lastError.message
                         );
@@ -147,7 +163,6 @@ document.addEventListener("DOMContentLoaded", function () {
         );
       } else {
         console.log("No active tab found");
-        // Handle the case when there's no active tab
       }
     });
   }
@@ -238,17 +253,23 @@ document.addEventListener("DOMContentLoaded", function () {
       chrome.storage.local.remove("authToken", function () {
         console.log("Auth token removed");
 
-        // Construct logout URL with proper endpoint
-        const logoutUrl = new URL("https://signin.realeyes.ai/logout");
-        logoutUrl.searchParams.append(
-          "client_id",
-          "49nfihgrtdm78kf6su5brla4o5"
-        );
-        logoutUrl.searchParams.append("logout_uri", "https://realeyes.ai");
+        // Remove the opp_access_token cookie
+        chrome.cookies.remove(
+          { url: "https://realeyes.ai", name: "opp_access_token" },
+          function (details) {
+            // Construct logout URL with proper endpoint
+            const logoutUrl = new URL("https://signin.realeyes.ai/logout");
+            logoutUrl.searchParams.append(
+              "client_id",
+              "49nfihgrtdm78kf6su5brla4o5"
+            );
+            logoutUrl.searchParams.append("logout_uri", "https://realeyes.ai");
 
-        // Open logout URL in new tab and close popup
-        chrome.tabs.create({ url: logoutUrl.toString() });
-        window.close();
+            // Open logout URL in new tab and close popup
+            chrome.tabs.create({ url: logoutUrl.toString() });
+            window.close();
+          }
+        );
       });
     });
   }
