@@ -11,9 +11,9 @@
     "cookies"
   ],
   "host_permissions": [
-    "<all_urls>",
     "https://api.realeyes.ai/*",
-    "https://realeyes.ai/*"
+    "https://realeyes.ai/*",
+    "https://signin.realeyes.ai/*"
   ],
   "content_scripts": [
     {
