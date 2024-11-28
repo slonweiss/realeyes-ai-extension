@@ -30,10 +30,28 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function checkAuthentication() {
     return new Promise((resolve) => {
-      chrome.storage.local.get(["authToken"], function (result) {
-        console.log("Auth token check result:", result);
-        resolve(!!result.authToken);
-      });
+      // First check for valid cookie
+      chrome.cookies.get(
+        {
+          url: "https://realeyes.ai",
+          name: "opp_access_token",
+        },
+        (cookie) => {
+          if (cookie && cookie.value) {
+            // If cookie exists, store it in local storage and resolve as authenticated
+            chrome.storage.local.set({ authToken: cookie.value }, () => {
+              console.log("Auth token set from existing cookie");
+              resolve(true);
+            });
+          } else {
+            // If no cookie, fall back to checking local storage
+            chrome.storage.local.get(["authToken"], function (result) {
+              console.log("No cookie found, checking local storage:", result);
+              resolve(!!result.authToken);
+            });
+          }
+        }
+      );
     });
   }
 
