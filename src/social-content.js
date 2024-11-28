@@ -727,45 +727,124 @@
                     
                     <div class="accordion-content">
                         <div class="details-section">
-                            <h4 style="margin: 5px 0; color: #495057;">Model Details</h4>
-                            <p><strong>Selected Model:</strong> ${modelUsed}</p>
-                            <p><strong>Logit Value:</strong> ${analysis.logit.toFixed(
-                              4
-                            )}</p>
-                            <p><strong>Raw Probability:</strong> ${analysis.probability.toFixed(
-                              6
-                            )}</p>
+                            <div class="model-comparison">
+                                <div class="model-result ${
+                                  standardAnalysis.probability >
+                                  ufdAnalysis.probability
+                                    ? "selected"
+                                    : ""
+                                }">
+                                    <h4 style="font-size: 12px;">DMImageDetection</h4>
+                                    <div class="model-probability">${(
+                                      standardAnalysis.probability * 100
+                                    ).toFixed(1)}%</div>
+                                </div>
+                                <div class="model-result ${
+                                  ufdAnalysis.probability >
+                                  standardAnalysis.probability
+                                    ? "selected"
+                                    : ""
+                                }">
+                                    <h4 style="font-size: 12px;">UniversalFakeDetect</h4>
+                                    <div class="model-probability">
+                                        <div class="bar-fill" style="width: ${(
+                                          ufdAnalysis.probability * 100
+                                        ).toFixed(1)}%"></div>
+                                        <span>${(
+                                          ufdAnalysis.probability * 100
+                                        ).toFixed(1)}%</span>
+                                    </div>
+                                </div>
+                            </div>
                             
-                            <h4 style="margin: 10px 0 5px; color: #495057;">Image Information</h4>
-                            <p><strong>File Name:</strong> ${
-                              results.originalFileName
-                            }</p>
-                            <p><strong>File Size:</strong> ${(
-                              results.fileSize / 1024
-                            ).toFixed(2)} KB</p>
-                            <p><strong>Dimensions:</strong> ${
-                              results.metadata.sharp.width
-                            }x${results.metadata.sharp.height}</p>
-                            <p><strong>Format:</strong> ${results.metadata.sharp.format.toUpperCase()}</p>
-                            
-                            <h4 style="margin: 10px 0 5px; color: #495057;">Analysis Comparison</h4>
-                            <p><strong>DMImageDetection Model:</strong> ${(
-                              standardAnalysis.probability * 100
-                            ).toFixed(1)}% probability</p>
-                            <p><strong>UniversalFakeDetect Model:</strong> ${(
-                              ufdAnalysis.probability * 100
-                            ).toFixed(1)}% probability</p>
-                            
-                            <h4 style="margin: 10px 0 5px; color: #495057;">Technical Details</h4>
-                            <p><strong>Image Hash:</strong> ${
-                              results.imageHash
-                            }</p>
-                            <p><strong>Perceptual Hash:</strong> ${
-                              results.pHash
-                            }</p>
-                            <p><strong>Upload Date:</strong> ${new Date(
-                              results.uploadDate
-                            ).toLocaleString()}</p>
+                            <div class="details-grid">
+                                ${detailRow(
+                                  "File Name",
+                                  results.originalFileName,
+                                  "Original filename of the uploaded image"
+                                )}
+                                ${detailRow(
+                                  "File Size",
+                                  `${(results.fileSize / 1024).toFixed(2)} KB`,
+                                  "Size of the image file in kilobytes"
+                                )}
+                                ${detailRow(
+                                  "Dimensions",
+                                  `${results.metadata.sharp.width}x${results.metadata.sharp.height}`,
+                                  "Width and height of the image in pixels"
+                                )}
+                                ${detailRow(
+                                  "Format",
+                                  results.metadata.sharp.format.toUpperCase(),
+                                  "Image file format"
+                                )}
+                                ${detailRow(
+                                  "Color Space",
+                                  results.metadata.sharp.space.toUpperCase(),
+                                  "Color space used by the image (sRGB, CMYK, etc.)"
+                                )}
+                                ${detailRow(
+                                  "Channels",
+                                  results.metadata.sharp.channels,
+                                  "Number of color channels in the image"
+                                )}
+                                ${detailRow(
+                                  "Bit Depth",
+                                  results.metadata.sharp.depth,
+                                  "Bits per channel used to represent colors"
+                                )}
+                                ${detailRow(
+                                  "Resolution",
+                                  `${results.metadata.sharp.density} DPI`,
+                                  "Image resolution in dots per inch (DPI)"
+                                )}
+                                ${detailRow(
+                                  "Chroma Subsampling",
+                                  results.metadata.sharp.chromaSubsampling,
+                                  "Type of chroma subsampling used for color compression"
+                                )}
+                                ${detailRow(
+                                  "Progressive Loading",
+                                  results.metadata.sharp.isProgressive
+                                    ? "Yes"
+                                    : "No",
+                                  "Whether the image uses progressive loading"
+                                )}
+                                ${detailRow(
+                                  "Has Alpha Channel",
+                                  results.metadata.sharp.hasAlpha
+                                    ? "Yes"
+                                    : "No",
+                                  "Whether the image contains transparency"
+                                )}
+                                ${detailRow(
+                                  "Has Color Profile",
+                                  results.metadata.sharp.hasProfile
+                                    ? "Yes"
+                                    : "No",
+                                  "Whether the image contains a color profile"
+                                )}
+                                ${detailRow(
+                                  "Image Hash",
+                                  results.imageHash,
+                                  "Unique SHA-256 hash of the image content"
+                                )}
+                                ${detailRow(
+                                  "Perceptual Hash",
+                                  results.pHash,
+                                  "Perceptual hash used for finding similar images"
+                                )}
+                                ${detailRow(
+                                  "Upload Date",
+                                  new Date(results.uploadDate).toLocaleString(),
+                                  "When the image was uploaded for analysis"
+                                )}
+                                ${detailRow(
+                                  "Origin Website",
+                                  results.originWebsites?.[0] || "Unknown",
+                                  "Website where the image was found"
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1425,4 +1504,13 @@
     }
     return null;
   };
+
+  // In the displayAnalysisResults function, update how we generate the detail rows
+  // Move the title attribute from detail-row to detail-label
+  const detailRow = (label, value, tooltip) => `
+    <div class="detail-row">
+        <span class="detail-label" title="${tooltip}">${label}</span>
+        <span class="detail-value">${value}</span>
+    </div>
+  `;
 })();
