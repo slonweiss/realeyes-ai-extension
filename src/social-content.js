@@ -770,8 +770,8 @@
                     </div>
                 </div>
 
-                <div class="feedback-section" style="margin-top: 20px; text-align: center;">
-                    <p style="margin-bottom: 10px; color: #333;">Was this analysis helpful?</p>
+                <div class="feedback-section">
+                    <p>Was this analysis helpful?</p>
                     <div class="feedback-buttons">
                         <button class="feedback-btn thumbs-up" data-image-hash="${
                           results.imageHash
