@@ -617,18 +617,15 @@
             </div>
         `;
     } else {
-      // Get the analysis with higher probability
-      const standardAnalysis = results.sageMakerAnalysis;
-      const ufdAnalysis = results.sageMakerAnalysisUFD;
+      // Get the analysis results, handling potential null/undefined values
+      const standardAnalysis = results.sageMakerAnalysis || { probability: 0 };
+      const ufdAnalysis = results.sageMakerAnalysisUFD || { probability: 0 };
 
+      // Determine which model to use based on available results
       const analysis =
         standardAnalysis.probability > ufdAnalysis.probability
           ? standardAnalysis
           : ufdAnalysis;
-      const modelUsed =
-        standardAnalysis.probability > ufdAnalysis.probability
-          ? "DMImageDetection Model"
-          : "UniversalFakeDetect Model";
 
       if (analysis) {
         const probability = (analysis.probability * 100).toFixed(1);
@@ -735,9 +732,17 @@
                                     : ""
                                 }">
                                     <h4 style="font-size: 12px;">DMImageDetection</h4>
-                                    <div class="model-probability">${(
-                                      standardAnalysis.probability * 100
-                                    ).toFixed(1)}%</div>
+                                    <div class="model-probability">
+                                        ${
+                                          standardAnalysis.probability !==
+                                          undefined
+                                            ? `${(
+                                                standardAnalysis.probability *
+                                                100
+                                              ).toFixed(1)}%`
+                                            : "No result"
+                                        }
+                                    </div>
                                 </div>
                                 <div class="model-result ${
                                   ufdAnalysis.probability >
@@ -747,15 +752,23 @@
                                 }">
                                     <h4 style="font-size: 12px;">UniversalFakeDetect</h4>
                                     <div class="model-probability">
-                                        <div class="bar-fill" style="width: ${(
-                                          ufdAnalysis.probability * 100
-                                        ).toFixed(1)}%"></div>
-                                        <span>${(
-                                          ufdAnalysis.probability * 100
-                                        ).toFixed(1)}%</span>
+                                        ${
+                                          ufdAnalysis.probability !== undefined
+                                            ? `${(
+                                                ufdAnalysis.probability * 100
+                                              ).toFixed(1)}%`
+                                            : "No result"
+                                        }
                                     </div>
                                 </div>
                             </div>
+                            
+                            <a href="https://realeyes.ai/transparency" 
+                               class="model-info-link" 
+                               target="_blank"
+                               rel="noopener noreferrer">
+                               Learn more about our detection models →
+                            </a>
                             
                             <div class="details-grid">
                                 ${detailRow(
@@ -1079,6 +1092,10 @@
         accordionButton.addEventListener("click", () => {
           const isOpen = accordionContent.style.display === "block";
           accordionContent.style.display = isOpen ? "none" : "block";
+          // Update button text based on state
+          accordionButton.querySelector("span").textContent = isOpen
+            ? "View Analysis Details"
+            : "Hide Analysis Details";
         });
       } else {
         popup.innerHTML = `

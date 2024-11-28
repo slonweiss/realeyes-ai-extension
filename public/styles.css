@@ -712,7 +712,7 @@
 
 /* Analysis Details Styling */
 .model-comparison {
-  margin-bottom: 20px !important;
+  margin-bottom: 8px !important;
   padding: 15px !important;
   background: #f8f9fa !important;
   border-radius: 8px !important;
@@ -726,7 +726,7 @@
   border-radius: 6px !important;
   text-align: center !important;
   flex: 1 !important;
-  max-width: 200px !important;
+  max-width: 150px !important;
 }
 
 .model-result.selected {
@@ -736,8 +736,9 @@
 
 .model-result h4 {
   margin: 0 0 5px 0 !important;
-  font-size: 14px !important;
+  font-size: 12px !important;
   color: #495057 !important;
+  white-space: nowrap !important;
 }
 
 .model-probability {
@@ -811,4 +812,19 @@
   border-radius: 8px !important;
   margin-top: 10px !important;
   padding: 0 !important;
+}
+
+/* Add new styles for the model info link */
+.model-info-link {
+  display: block !important;
+  text-align: center !important;
+  margin: 0 0 15px 0 !important;
+  font-size: 12px !important;
+  color: #2196f3 !important;
+  text-decoration: none !important;
+}
+
+.model-info-link:hover {
+  text-decoration: underline !important;
+  color: #1976d2 !important;
 }
