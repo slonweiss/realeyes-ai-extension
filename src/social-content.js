@@ -1102,6 +1102,23 @@
             ? "View Analysis Details"
             : "Hide Analysis Details";
         });
+
+        const selectedModel = popup.querySelector(".model-result.selected");
+        if (selectedModel) {
+          selectedModel.addEventListener("mousemove", (e) => {
+            const tooltip = selectedModel;
+            const x = e.clientX + 15; // Offset from cursor X
+            const y = e.clientY + 15; // Offset from cursor Y
+
+            tooltip.style.setProperty("--tooltip-x", `${x}px`);
+            tooltip.style.setProperty("--tooltip-y", `${y}px`);
+          });
+
+          selectedModel.addEventListener("mouseleave", () => {
+            selectedModel.style.setProperty("--tooltip-visibility", "hidden");
+            selectedModel.style.setProperty("--tooltip-opacity", "0");
+          });
+        }
       } else {
         popup.innerHTML = `
                 <div class="error-container">

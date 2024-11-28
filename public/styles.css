@@ -191,8 +191,55 @@
 }
 
 .loading-indicator {
-  text-align: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  padding: 20px !important;
   color: #333333 !important;
+  font-size: 14px !important;
+  width: 100% !important;
+}
+
+.spinner {
+  width: 20px !important;
+  height: 20px !important;
+  border-width: 3px !important;
+  border-style: solid !important;
+  border-color: #f3f3f3 !important;
+  border-top-color: #2196f3 !important;
+  border-radius: 50% !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  margin-right: 8px !important;
+  animation-name: spinAnimation !important;
+  animation-duration: 1s !important;
+  animation-timing-function: linear !important;
+  animation-iteration-count: infinite !important;
+  animation-play-state: running !important;
+  -webkit-animation-name: spinAnimation !important;
+  -webkit-animation-duration: 1s !important;
+  -webkit-animation-timing-function: linear !important;
+  -webkit-animation-iteration-count: infinite !important;
+  -webkit-animation-play-state: running !important;
+}
+
+@keyframes spinAnimation {
+  from {
+    transform: rotate(0deg) !important;
+  }
+  to {
+    transform: rotate(360deg) !important;
+  }
+}
+
+@-webkit-keyframes spinAnimation {
+  from {
+    -webkit-transform: rotate(0deg) !important;
+  }
+  to {
+    -webkit-transform: rotate(360deg) !important;
+  }
 }
 
 .analysis-results {
@@ -450,23 +497,6 @@
 
 .feedback-btn span {
   font-size: 18px;
-}
-
-.spinner {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  border-top-color: transparent;
-  animation: spin 1s linear infinite;
-  margin-right: 8px;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .feedback-error {
@@ -730,11 +760,39 @@
   text-align: center !important;
   flex: 1 !important;
   max-width: 150px !important;
+  position: relative !important;
 }
 
 .model-result.selected {
   background: rgba(76, 175, 80, 0.1) !important;
   border: 1px solid #4caf50 !important;
+  cursor: help !important;
+  position: relative !important;
+}
+
+.model-result.selected::after {
+  content: "Model selected for analysis results" !important;
+  position: fixed !important;
+  left: var(--tooltip-x, auto) !important;
+  top: var(--tooltip-y, auto) !important;
+  transform: none !important;
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  color: white !important;
+  padding: 6px 10px !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  z-index: 2147483649 !important;
+  transition: opacity 0.3s ease, visibility 0.3s ease !important;
+}
+
+.model-result.selected:hover::after {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition-delay: 0.5s !important;
 }
 
 .model-result h4 {
@@ -817,36 +875,4 @@
 .model-info-link:hover {
   text-decoration: underline !important;
   color: #1976d2 !important;
-}
-
-/* Add new loading spinner styles */
-.loading-indicator {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 10px !important;
-  padding: 20px !important;
-  color: #333 !important;
-  font-size: 14px !important;
-}
-
-.spinner {
-  width: 20px !important;
-  height: 20px !important;
-  border: 3px solid #f3f3f3 !important;
-  border-top: 3px solid #2196f3 !important;
-  border-radius: 50% !important;
-  animation: spin 1s linear infinite !important;
-  display: inline-block !important;
-  vertical-align: middle !important;
-  margin-right: 8px !important;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
 }
