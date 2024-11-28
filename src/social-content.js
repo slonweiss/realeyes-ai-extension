@@ -702,14 +702,22 @@
                     </div>
                 </div>
 
-                <div class="request-count">
+                <div class="request-count" data-tooltip="${
+                  results.requestCount === 1
+                    ? "The analysis results were determined in near-real-time"
+                    : "Displaying cached analysis results"
+                }">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2ZM12 20C7.6 20 4 16.4 4 12C4 7.6 7.6 4 12 4C16.4 4 20 7.6 20 12C20 16.4 16.4 20 12 20Z" fill="#666"/>
                         <path d="M12.5 7H11V13L16.2 16.2L17 14.9L12.5 12.2V7Z" fill="#666"/>
                     </svg>
-                    Image analyzed ${results.requestCount} time${
-          results.requestCount !== 1 ? "s" : ""
-        }
+                    ${
+                      results.requestCount === 1
+                        ? "You're the first to analyze this image"
+                        : `Image analyzed ${results.requestCount} time${
+                            results.requestCount !== 1 ? "s" : ""
+                          }`
+                    }
                 </div>
 
                 <div class="analysis-details-accordion">
