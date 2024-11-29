@@ -15,8 +15,8 @@ import { parse } from "lambda-multipart-parser";
 import path from "path";
 import imghash from "imghash";
 import sharp from "sharp";
-import ExifReader from "exif-reader";
-import * as c2pa from "c2pa";
+import * as ExifReader from "exif-reader";
+import { createC2pa } from "c2pa-node";
 import {
   SageMakerRuntimeClient,
   InvokeEndpointCommand,
@@ -67,18 +67,29 @@ const calculatePHash = async (buffer) => {
 
 // Add this function after the existing utility functions
 const getValidOrigin = (event) => {
-  const origin = event.headers.origin || event.headers.Origin || "";
-  const referer = event.headers.referer || event.headers.Referrer || "";
+  const xOrigin = event.headers["x-origin"] || event.headers["X-Origin"];
+  const origin = event.headers.origin || event.headers.Origin;
+  const referer = event.headers.referer || event.headers.Referrer;
 
-  // Check if the origin is in the allowed list
-  if (allowedOrigins.includes(origin)) {
+  // First check x-origin header
+  if (xOrigin) {
+    const xOriginDomain = new URL(xOrigin).origin;
+    if (allowedOrigins.includes(xOriginDomain)) {
+      return xOriginDomain;
+    }
+  }
+
+  // Then check regular origin
+  if (origin && allowedOrigins.includes(origin)) {
     return origin;
   }
 
-  // If origin is not in the allowed list, try to extract from referer
-  for (const allowedOrigin of allowedOrigins) {
-    if (referer.startsWith(allowedOrigin)) {
-      return allowedOrigin;
+  // Finally check referer
+  if (referer) {
+    for (const allowedOrigin of allowedOrigins) {
+      if (referer.startsWith(allowedOrigin)) {
+        return allowedOrigin;
+      }
     }
   }
 
@@ -162,84 +173,451 @@ async function extractAllMetadata(buffer) {
   let metadata = {};
 
   try {
-    // Extract metadata using sharp
+    console.log("Starting metadata extraction...");
     const sharpMetadata = await sharp(buffer).metadata();
+    console.log("Sharp metadata:", sharpMetadata);
     metadata.sharp = sharpMetadata;
 
-    // Extract EXIF data
+    // EXIF logging
     try {
-      const exif = ExifReader.load(buffer);
-      metadata.exif = exif;
+      console.log("Attempting to extract EXIF data...");
+      console.log("EXIF buffer exists:", !!sharpMetadata.exif);
+      if (sharpMetadata.exif) {
+        const exif = ExifReader.default(sharpMetadata.exif);
+        console.log("EXIF data extracted:", exif);
+        metadata.exif = exif;
+      }
     } catch (exifError) {
-      console.log(
-        "No EXIF data found or error reading EXIF data:",
-        exifError.message
-      );
+      console.error("EXIF extraction failed:", {
+        error: exifError,
+        message: exifError.message,
+        stack: exifError.stack,
+      });
+      metadata.exif = null;
     }
 
-    // Extract C2PA data
+    // C2PA logging with Node.js library
     try {
-      const c2paData = await c2pa.read(buffer);
-      if (c2paData) {
+      console.log("Attempting to extract C2PA data...");
+      const c2pa = createC2pa();
+      console.log("C2PA instance created");
+
+      const c2paResult = await c2pa.read({
+        buffer,
+        mimeType: metadata.sharp.format
+          ? `image/${metadata.sharp.format}`
+          : "image/jpeg",
+      });
+
+      console.log("C2PA data extracted:", c2paResult);
+
+      if (c2paResult) {
         metadata.c2pa = {
-          activeManifest: c2paData.activeManifest,
-          manifestStore: c2paData.manifestStore,
-          ingredients: c2paData.ingredients,
-          thumbnail: c2paData.thumbnail,
-          // Add any other relevant C2PA data you want to store
+          activeManifest: c2paResult.active_manifest,
+          manifestStore: c2paResult.manifests,
+          validationStatus: c2paResult.validation_status,
         };
+      } else {
+        console.log("No C2PA data found in image");
+        metadata.c2pa = null;
       }
     } catch (c2paError) {
-      console.log(
-        "No C2PA data found or error reading C2PA data:",
-        c2paError.message
-      );
+      console.error("C2PA extraction failed:", {
+        error: c2paError,
+        message: c2paError.message,
+        stack: c2paError.stack,
+      });
+      metadata.c2pa = null;
     }
   } catch (error) {
-    console.error("Error extracting metadata:", error);
+    console.error("General metadata extraction error:", {
+      error,
+      message: error.message,
+      stack: error.stack,
+    });
   }
 
-  return metadata;
+  // Ensure we always return an object with all expected fields
+  return {
+    sharp: metadata.sharp || null,
+    exif: metadata.exif || null,
+    c2pa: metadata.c2pa || null,
+  };
 }
 
 const invokeSageMaker = async (imageBuffer) => {
   try {
     console.log(
-      "SageMaker Endpoint Name:",
-      process.env.SAGEMAKER_ENDPOINT_NAME
+      "SageMaker Endpoint Names:",
+      process.env.SAGEMAKER_ENDPOINT_NAME,
+      process.env.UNIVERSAL_FAKE_DETECT_ENDPOINT
     );
 
-    if (!process.env.SAGEMAKER_ENDPOINT_NAME) {
-      throw new Error(
-        "SAGEMAKER_ENDPOINT_NAME environment variable is not set"
-      );
+    if (
+      !process.env.SAGEMAKER_ENDPOINT_NAME ||
+      !process.env.UNIVERSAL_FAKE_DETECT_ENDPOINT
+    ) {
+      console.warn("SageMaker endpoint environment variables are not set");
+      return null;
     }
 
     // Convert buffer to base64
     const base64Image = imageBuffer.toString("base64");
+    const payload = JSON.stringify({ image: base64Image });
 
-    const command = new InvokeEndpointCommand({
-      EndpointName: process.env.SAGEMAKER_ENDPOINT_NAME,
-      ContentType: "application/json",
-      Body: JSON.stringify({ image: base64Image }),
-    });
+    // Invoke both endpoints in parallel with error handling for each
+    const [corviResponse, ufdResponse] = await Promise.allSettled([
+      sageMakerClient.send(
+        new InvokeEndpointCommand({
+          EndpointName: process.env.SAGEMAKER_ENDPOINT_NAME,
+          ContentType: "application/json",
+          Body: payload,
+        })
+      ),
+      sageMakerClient.send(
+        new InvokeEndpointCommand({
+          EndpointName: process.env.UNIVERSAL_FAKE_DETECT_ENDPOINT,
+          ContentType: "application/json",
+          Body: payload,
+        })
+      ),
+    ]);
 
-    const response = await sageMakerClient.send(command);
-    const result = JSON.parse(Buffer.from(response.Body).toString("utf8"));
+    // Initialize results
+    let corviResult = null;
+    let ufdResult = null;
 
+    // Process Corvi response if successful
+    if (corviResponse.status === "fulfilled") {
+      try {
+        corviResult = JSON.parse(
+          Buffer.from(corviResponse.value.Body).toString("utf8")
+        );
+      } catch (error) {
+        console.error("Error parsing Corvi response:", error);
+      }
+    } else {
+      console.error("Corvi endpoint error:", corviResponse.reason);
+    }
+
+    // Process UFD response if successful
+    if (ufdResponse.status === "fulfilled") {
+      try {
+        ufdResult = JSON.parse(
+          Buffer.from(ufdResponse.value.Body).toString("utf8")
+        );
+      } catch (error) {
+        console.error("Error parsing UFD response:", error);
+      }
+    } else {
+      console.error("UFD endpoint error:", ufdResponse.reason);
+    }
+
+    // Return results, with null values for failed endpoints
     return {
-      logit: result.logit,
-      probability: result.probability,
-      isFake: result.is_fake,
+      corvi: corviResult
+        ? {
+            logit: corviResult.logit,
+            probability: corviResult.probability,
+            isFake: corviResult.is_fake,
+          }
+        : null,
+      ufd: ufdResult
+        ? {
+            logit: ufdResult.logit,
+            probability: ufdResult.probability,
+            isFake: ufdResult.is_fake,
+          }
+        : null,
     };
   } catch (error) {
     console.error("SageMaker Configuration:", {
-      endpointName: process.env.SAGEMAKER_ENDPOINT_NAME,
+      corviEndpoint: process.env.SAGEMAKER_ENDPOINT_NAME,
+      ufdEndpoint: process.env.UNIVERSAL_FAKE_DETECT_ENDPOINT,
       region: process.env.AWS_REGION,
     });
-    console.error("Error invoking SageMaker endpoint:", error);
+    console.error("Error invoking SageMaker endpoints:", error);
+    return null;
+  }
+};
+
+function processImageUrl(url) {
+  if (!url) return "";
+
+  // Check if it's a data URL
+  if (url.startsWith("data:")) {
+    // Return a flag instead of the full data URL
+    return "[data-url]";
+  }
+
+  // Return the regular URL as is
+  return url;
+}
+
+// Add JWT verification function
+const verifyToken = (authHeader) => {
+  console.log(
+    "Verifying JWT token from auth header:",
+    authHeader?.substring(0, 20) + "..."
+  );
+  try {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.log("No valid Bearer token found in auth header");
+      return null;
+    }
+    const token = authHeader.split(" ")[1];
+    const decoded = Buffer.from(token.split(".")[1], "base64").toString();
+    const payload = JSON.parse(decoded);
+    console.log("Successfully decoded JWT payload:", payload);
+    return payload;
+  } catch (error) {
+    console.error("Error decoding JWT:", error);
+    return null;
+  }
+};
+
+// Add after other utility functions
+const logImageRequest = async (imageHash, userId, origin) => {
+  console.log("Attempting to log image request:", {
+    imageHash,
+    userId,
+    origin,
+  });
+
+  const timestamp = new Date().toISOString();
+  const requestId = crypto.randomUUID();
+
+  const logItem = {
+    requestId: { S: requestId },
+    userId: { S: userId || "anonymous" },
+    imageHash: { S: imageHash },
+    timestamp: { S: timestamp },
+    origin: { S: origin || "unknown" },
+  };
+
+  console.log("Constructed DynamoDB item:", JSON.stringify(logItem, null, 2));
+  console.log("Using table name:", process.env.REQUEST_LOG_TABLE);
+
+  try {
+    await dynamoDBClient.send(
+      new PutItemCommand({
+        TableName: process.env.REQUEST_LOG_TABLE,
+        Item: logItem,
+      })
+    );
+    console.log("Successfully logged request to DynamoDB");
+  } catch (error) {
+    console.error("Error logging request to DynamoDB:", error);
+    console.error("Error details:", {
+      errorName: error.name,
+      errorMessage: error.message,
+      stackTrace: error.stack,
+    });
     throw error;
   }
+};
+
+// Modify the metadata preparation for DynamoDB
+const prepareDynamoDBItem = (metadata) => {
+  try {
+    // Helper function to safely convert values to DynamoDB format
+    const toDynamoDBValue = (value) => {
+      if (value === null || value === undefined) {
+        return { NULL: true };
+      }
+      if (typeof value === "string") {
+        return { S: value };
+      }
+      if (typeof value === "number") {
+        return { N: value.toString() };
+      }
+      if (typeof value === "boolean") {
+        return { BOOL: value };
+      }
+      if (Array.isArray(value)) {
+        // Only process non-empty arrays of simple values
+        if (value.length === 0) {
+          return { L: [] };
+        }
+        return { L: value.map((item) => toDynamoDBValue(item.toString())) };
+      }
+      // For objects, convert to string to avoid nested structure issues
+      return { S: JSON.stringify(value) };
+    };
+
+    // Process Sharp metadata (only simple values)
+    const sharpAttributes = {
+      format: metadata.sharp?.format,
+      size: metadata.sharp?.size,
+      width: metadata.sharp?.width,
+      height: metadata.sharp?.height,
+      space: metadata.sharp?.space,
+      channels: metadata.sharp?.channels,
+      depth: metadata.sharp?.depth,
+      density: metadata.sharp?.density,
+      chromaSubsampling: metadata.sharp?.chromaSubsampling,
+      isProgressive: metadata.sharp?.isProgressive,
+      hasProfile: metadata.sharp?.hasProfile,
+      hasAlpha: metadata.sharp?.hasAlpha,
+    };
+
+    // Process C2PA metadata (simplified)
+    const c2paAttributes = metadata.c2pa
+      ? {
+          generator: metadata.c2pa.activeManifest?.claim_generator,
+          title: metadata.c2pa.activeManifest?.title,
+          format: metadata.c2pa.activeManifest?.format,
+          instanceId: metadata.c2pa.activeManifest?.instance_id,
+          label: metadata.c2pa.activeManifest?.label,
+          manifestCount: Object.keys(metadata.c2pa.manifestStore || {}).length,
+          signatureInfo: JSON.stringify({
+            alg: metadata.c2pa.activeManifest?.signature_info?.alg,
+            issuer: metadata.c2pa.activeManifest?.signature_info?.issuer,
+            time: metadata.c2pa.activeManifest?.signature_info?.time,
+          }),
+        }
+      : null;
+
+    // Convert to DynamoDB format
+    return {
+      metadata: {
+        M: {
+          sharp: {
+            M: Object.entries(sharpAttributes)
+              .filter(([_, value]) => value !== undefined)
+              .reduce(
+                (acc, [key, value]) => ({
+                  ...acc,
+                  [key]: toDynamoDBValue(value),
+                }),
+                {}
+              ),
+          },
+          c2pa: c2paAttributes
+            ? {
+                M: Object.entries(c2paAttributes)
+                  .filter(([_, value]) => value !== undefined)
+                  .reduce(
+                    (acc, [key, value]) => ({
+                      ...acc,
+                      [key]: toDynamoDBValue(value),
+                    }),
+                    {}
+                  ),
+              }
+            : { NULL: true },
+        },
+      },
+    };
+  } catch (error) {
+    console.error("Error preparing DynamoDB item:", error);
+    return {
+      metadata: {
+        M: {
+          sharp: { NULL: true },
+          c2pa: { NULL: true },
+        },
+      },
+    };
+  }
+};
+
+// Add this utility function after other utility functions
+const getAttributeSize = (attribute) => {
+  if (!attribute) return 0;
+  return Buffer.from(JSON.stringify(attribute)).length;
+};
+
+const logAttributeSizes = (item) => {
+  console.log("DynamoDB Item Size Analysis:");
+  Object.entries(item).forEach(([key, value]) => {
+    const size = getAttributeSize(value);
+    console.log(`- ${key}: ${size} bytes`);
+
+    // If it's metadata, drill down further
+    if (key === "metadata" && value.M) {
+      console.log("  Metadata breakdown:");
+      Object.entries(value.M).forEach(([metaKey, metaValue]) => {
+        console.log(`  - ${metaKey}: ${getAttributeSize(metaValue)} bytes`);
+      });
+    }
+  });
+};
+
+// Add this function to simplify C2PA data
+const simplifyC2paData = (c2paData) => {
+  if (!c2paData) return null;
+
+  // Simplify active manifest
+  const simplifiedActiveManifest = c2paData.active_manifest
+    ? {
+        claim_generator: c2paData.active_manifest.claim_generator,
+        title: c2paData.active_manifest.title,
+        format: c2paData.active_manifest.format,
+        instance_id: c2paData.active_manifest.instance_id,
+        signature_info: {
+          alg: c2paData.active_manifest.signature_info?.alg,
+          issuer: c2paData.active_manifest.signature_info?.issuer,
+          time: c2paData.active_manifest.signature_info?.time,
+        },
+        label: c2paData.active_manifest.label,
+        // Include count of ingredients and assertions instead of full arrays
+        ingredientsCount: c2paData.active_manifest.ingredients?.length || 0,
+        assertionsCount: c2paData.active_manifest.assertions?.length || 0,
+      }
+    : null;
+
+  // Simplify manifests - just include basic info and counts
+  const simplifiedManifests = {};
+  if (c2paData.manifests) {
+    Object.entries(c2paData.manifests).forEach(([key, manifest]) => {
+      simplifiedManifests[key] = {
+        claim_generator: manifest.claim_generator,
+        title: manifest.title,
+        format: manifest.format,
+        instance_id: manifest.instance_id,
+        ingredientsCount: manifest.ingredients?.length || 0,
+        assertionsCount: manifest.assertions?.length || 0,
+        signature_info: {
+          alg: manifest.signature_info?.alg,
+          issuer: manifest.signature_info?.issuer,
+          time: manifest.signature_info?.time,
+        },
+      };
+    });
+  }
+
+  return {
+    active_manifest: simplifiedActiveManifest,
+    manifests: simplifiedManifests,
+    validation_status: c2paData.validation_status || [],
+    manifestCount: Object.keys(c2paData.manifests || {}).length,
+  };
+};
+
+const createErrorResponse = (statusCode, message, details = null) => {
+  const response = {
+    error: {
+      message,
+      timestamp: new Date().toISOString(),
+      requestId: crypto.randomUUID(),
+    },
+  };
+
+  if (details) {
+    response.error.details = details;
+  }
+
+  return {
+    statusCode,
+    headers: {
+      "Access-Control-Allow-Origin": allowedOrigins[0],
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(response),
+  };
 };
 
 export const handler = async (event) => {
@@ -261,7 +639,7 @@ export const handler = async (event) => {
     )
   );
 
-  const origin = event.headers["Origin"] || event.headers["origin"];
+  const origin = getValidOrigin(event);
   const allowOrigin = allowedOrigins.includes(origin)
     ? origin
     : allowedOrigins[0];
@@ -335,18 +713,26 @@ export const handler = async (event) => {
     );
 
     const { files, fields } = result;
-    const storeData = fields?.storeData === "true";
+    // Get userId from the parsed result directly
+    const userId = result.userId || "anonymous";
+    console.log("User ID from request:", userId);
+
+    // Get storeData from the parsed result directly
+    const storeData =
+      result.storeData?.toLowerCase?.() === "true" || result.storeData === "1";
     console.log("Parsed form data:", {
       storeData,
-      fieldsReceived: fields,
-      storeDataRawValue: fields?.storeData,
+      resultValue: result.storeData,
+      resultValueType: typeof result.storeData,
+      parsedBoolean: storeData,
     });
 
     // The URL is at the top level of the result, not in fields
     const url = result.url || "";
+    const processedUrl = processImageUrl(url);
 
     console.log("URL from result:", result.url);
-    console.log("Processed URL value:", url);
+    console.log("Processed URL value:", processedUrl);
 
     if (!files || files.length === 0) {
       throw new Error("No files found in the request");
@@ -359,13 +745,13 @@ export const handler = async (event) => {
     const fileName = file.filename;
     const mimeType = file.contentType;
     console.log("URL from fields:", fields?.url);
-    console.log("Processed URL value:", url);
+    console.log("Processed URL value:", processedUrl);
 
     console.log(`File received: ${fileName}`);
     console.log(`File size: ${fileData.length} bytes`);
     console.log(`Content-Type: ${mimeType}`);
     console.log(`First 16 bytes: ${fileData.slice(0, 16).toString("hex")}`);
-    console.log(`URL: ${url}`);
+    console.log(`URL: ${processedUrl}`);
 
     // Calculate both hashes
     const sha256Hash = crypto
@@ -426,6 +812,46 @@ export const handler = async (event) => {
 
       const updatedItem = updateResult.Attributes;
 
+      // Format metadata similar to new images
+      const formattedMetadata = {
+        sharp: {
+          format: updatedItem?.metadata?.M?.sharp?.M?.format?.S,
+          size: parseInt(updatedItem?.metadata?.M?.sharp?.M?.size?.N),
+          width: parseInt(updatedItem?.metadata?.M?.sharp?.M?.width?.N),
+          height: parseInt(updatedItem?.metadata?.M?.sharp?.M?.height?.N),
+          space: updatedItem?.metadata?.M?.sharp?.M?.space?.S,
+          channels: parseInt(updatedItem?.metadata?.M?.sharp?.M?.channels?.N),
+          depth: updatedItem?.metadata?.M?.sharp?.M?.depth?.S,
+          density: parseInt(updatedItem?.metadata?.M?.sharp?.M?.density?.N),
+          chromaSubsampling:
+            updatedItem?.metadata?.M?.sharp?.M?.chromaSubsampling?.S,
+          isProgressive:
+            updatedItem?.metadata?.M?.sharp?.M?.isProgressive?.BOOL,
+          hasProfile: updatedItem?.metadata?.M?.sharp?.M?.hasProfile?.BOOL,
+          hasAlpha: updatedItem?.metadata?.M?.sharp?.M?.hasAlpha?.BOOL,
+        },
+        exif: updatedItem?.metadata?.M?.exif?.M || {},
+        c2pa: updatedItem?.metadata?.M?.c2pa?.M || {},
+      };
+
+      // Format SageMaker analysis results
+      const formattedSageMakerAnalysis = {
+        corvi: {
+          logit: parseFloat(updatedItem?.sageMakerAnalysisCorvi23?.M?.logit?.N),
+          probability: parseFloat(
+            updatedItem?.sageMakerAnalysisCorvi23?.M?.probability?.N
+          ),
+          isFake: updatedItem?.sageMakerAnalysisCorvi23?.M?.isFake?.BOOL,
+        },
+        ufd: {
+          logit: parseFloat(updatedItem?.sageMakerAnalysisUFD?.M?.logit?.N),
+          probability: parseFloat(
+            updatedItem?.sageMakerAnalysisUFD?.M?.probability?.N
+          ),
+          isFake: updatedItem?.sageMakerAnalysisUFD?.M?.isFake?.BOOL,
+        },
+      };
+
       return {
         statusCode: 200,
         headers: {
@@ -435,24 +861,23 @@ export const handler = async (event) => {
         body: JSON.stringify({
           message: "File already exists",
           imageHash: sha256Hash,
-          pHash: updatedItem.PHash.S,
-          s3ObjectUrl: updatedItem.s3ObjectUrl.S,
-          originalFileName: updatedItem.originalFileName.S,
-          originWebsites: updatedItem.originWebsites.SS,
-          requestCount: parseInt(updatedItem.requestCount.N),
-          imageOriginUrl: updatedItem.originalUrl.S,
-          fileExtension: updatedItem.fileExtension.S,
-          extensionSource: updatedItem.extensionSource.S,
-          uploadDate: updatedItem.uploadDate.S,
-          fileSize: parseInt(updatedItem.fileSize.N),
-          allMetadata: JSON.parse(updatedItem.allMetadata.S),
-          sageMakerAnalysis: {
-            logit: parseFloat(updatedItem.sageMakerAnalysisCorvi23.M.logit.N),
-            probability: parseFloat(
-              updatedItem.sageMakerAnalysisCorvi23.M.probability.N
-            ),
-            isFake: updatedItem.sageMakerAnalysisCorvi23.M.isFake.BOOL,
-          },
+          pHash: updatedItem?.PHash?.S,
+          s3ObjectUrl: updatedItem?.s3ObjectUrl?.S,
+          originalFileName: updatedItem?.originalFileName?.S,
+          originWebsites: updatedItem?.originWebsites?.SS || [],
+          requestCount: updatedItem?.requestCount?.N
+            ? parseInt(updatedItem.requestCount.N)
+            : 1,
+          imageOriginUrl: updatedItem?.originalUrl?.S || "",
+          fileExtension: updatedItem?.fileExtension?.S,
+          extensionSource: updatedItem?.extensionSource?.S,
+          uploadDate: updatedItem?.uploadDate?.S,
+          fileSize: updatedItem?.fileSize?.N
+            ? parseInt(updatedItem.fileSize.N)
+            : 0,
+          metadata: formattedMetadata,
+          sageMakerAnalysis: formattedSageMakerAnalysis.corvi,
+          sageMakerAnalysisUFD: formattedSageMakerAnalysis.ufd,
         }),
       };
     } else {
@@ -462,7 +887,7 @@ export const handler = async (event) => {
       console.log(`Detected mimeType: ${mimeType}`);
       const { ext: fileExtension, extensionSource } = getFileExtensionFromData(
         fileName,
-        url,
+        processedUrl,
         mimeType,
         fileData
       );
@@ -518,20 +943,39 @@ export const handler = async (event) => {
         PHash: { S: pHash },
         uploadDate: { S: new Date().toISOString() },
         originalFileName: { S: fileName },
-        originalUrl: { S: url || "" },
+        originalUrl: processedUrl ? { S: processedUrl } : { NULL: true },
         requestCount: { N: "1" },
         fileExtension: { S: fileExtension },
         extensionSource: { S: extensionSource },
         fileSize: { N: fileData.length.toString() },
-        allMetadata: { S: JSON.stringify(allMetadata) },
-        sageMakerAnalysisCorvi23: {
-          M: {
-            logit: { N: sageMakerResult.logit.toString() },
-            probability: { N: sageMakerResult.probability.toString() },
-            isFake: { BOOL: sageMakerResult.isFake },
-          },
-        },
       };
+
+      // Only add SageMaker results if they exist
+      if (sageMakerResult?.corvi) {
+        dynamoDBItem.sageMakerAnalysisCorvi23 = {
+          M: {
+            logit: { N: sageMakerResult.corvi.logit.toString() },
+            probability: { N: sageMakerResult.corvi.probability.toString() },
+            isFake: { BOOL: sageMakerResult.corvi.isFake },
+          },
+        };
+      }
+
+      if (sageMakerResult?.ufd) {
+        dynamoDBItem.sageMakerAnalysisUFD = {
+          M: {
+            logit: { N: sageMakerResult.ufd.logit.toString() },
+            probability: { N: sageMakerResult.ufd.probability.toString() },
+            isFake: { BOOL: sageMakerResult.ufd.isFake },
+          },
+        };
+      }
+
+      // Add metadata if available
+      const preparedMetadata = prepareDynamoDBItem(allMetadata);
+      if (preparedMetadata.metadata) {
+        dynamoDBItem.metadata = preparedMetadata.metadata;
+      }
 
       // Only add S3-related fields if storeData is true
       if (storeData) {
@@ -554,6 +998,16 @@ export const handler = async (event) => {
       });
 
       try {
+        // Log sizes before attempting to save
+        logAttributeSizes(dynamoDBItem);
+
+        // DynamoDB has a 400KB item size limit
+        const totalSize = getAttributeSize(dynamoDBItem);
+        console.log(`Total DynamoDB item size: ${totalSize} bytes`);
+        if (totalSize > 400000) {
+          console.warn("WARNING: Item size exceeds DynamoDB's 400KB limit");
+        }
+
         await dynamoDBClient.send(
           new PutItemCommand({
             TableName: dynamoDBTableName,
@@ -563,10 +1017,46 @@ export const handler = async (event) => {
         console.log("Successfully saved to DynamoDB");
       } catch (error) {
         console.error("Error saving to DynamoDB:", error);
+        console.error("Error details:", {
+          name: error.name,
+          message: error.message,
+          code: error.$metadata?.httpStatusCode,
+        });
         throw error;
       }
 
-      // Return response
+      // Add after SageMaker analysis
+      try {
+        await logImageRequest(sha256Hash, userId, origin);
+        console.log("Request logging completed successfully");
+      } catch (loggingError) {
+        console.error(
+          "Failed to log request, but continuing with response:",
+          loggingError
+        );
+      }
+
+      // In the response, filter out binary data
+      const sanitizedMetadata = {
+        sharp: {
+          format: allMetadata.sharp?.format,
+          size: allMetadata.sharp?.size,
+          width: allMetadata.sharp?.width,
+          height: allMetadata.sharp?.height,
+          space: allMetadata.sharp?.space,
+          channels: allMetadata.sharp?.channels,
+          depth: allMetadata.sharp?.depth,
+          density: allMetadata.sharp?.density,
+          chromaSubsampling: allMetadata.sharp?.chromaSubsampling,
+          isProgressive: allMetadata.sharp?.isProgressive,
+          hasProfile: allMetadata.sharp?.hasProfile,
+          hasAlpha: allMetadata.sharp?.hasAlpha,
+        },
+        exif: allMetadata.exif || {},
+        c2pa: simplifyC2paData(allMetadata.c2pa),
+      };
+
+      // Update the response body to use sanitizedMetadata
       return {
         statusCode: 200,
         headers: {
@@ -578,14 +1068,21 @@ export const handler = async (event) => {
           imageHash: sha256Hash,
           pHash: pHash,
           s3ObjectUrl: storeData ? s3ObjectUrl : null,
-          dataMatch: storeData ? isDataEqual : null,
           originalFileName: fileName,
           originWebsites: origin ? [origin] : [],
           requestCount: 1,
-          imageOriginUrl: url,
+          imageOriginUrl: processedUrl,
           fileExtension: fileExtension,
           extensionSource: extensionSource,
-          sageMakerAnalysis: sageMakerResult,
+          uploadDate: new Date().toISOString(),
+          fileSize: fileData.length,
+          metadata: sanitizedMetadata,
+          ...(sageMakerResult?.corvi && {
+            sageMakerAnalysis: sageMakerResult.corvi,
+          }),
+          ...(sageMakerResult?.ufd && {
+            sageMakerAnalysisUFD: sageMakerResult.ufd,
+          }),
         }),
       };
     }
@@ -593,16 +1090,29 @@ export const handler = async (event) => {
     console.error("Error processing image:", error);
     console.error("Error stack:", error.stack);
     console.error("Metadata object:", allMetadata || "No metadata available");
-    return {
-      statusCode: 500,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        error: "Internal server error",
-        details: error.message,
-      }),
-    };
+
+    let statusCode = 500;
+    let errorMessage = "Internal server error";
+    let errorDetails = null;
+
+    // Categorize different types of errors
+    if (error.name === "ValidationError") {
+      statusCode = 400;
+      errorMessage = "Invalid request data";
+      errorDetails = error.message;
+    } else if (error.name === "AuthorizationError") {
+      statusCode = 401;
+      errorMessage = "Authentication required";
+    } else if (error.code === "EntityTooLarge") {
+      statusCode = 413;
+      errorMessage = "Image file too large";
+    } else if (error.$metadata?.httpStatusCode) {
+      // AWS service errors
+      statusCode = error.$metadata.httpStatusCode;
+      errorMessage = "Service temporarily unavailable";
+      errorDetails = error.message;
+    }
+
+    return createErrorResponse(statusCode, errorMessage, errorDetails);
   }
 };

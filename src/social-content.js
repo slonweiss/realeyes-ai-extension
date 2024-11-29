@@ -1401,40 +1401,58 @@
   }
 
   // Show message to user
-  function showMessage(message, type) {
+  function showMessage(message, type, duration = 3000) {
     const messageDiv = document.createElement("div");
-    messageDiv.textContent = message;
-    messageDiv.style.position = "fixed";
-    messageDiv.style.bottom = "20px";
-    messageDiv.style.right = "20px";
-    messageDiv.style.padding = "10px 20px";
-    messageDiv.style.borderRadius = "5px";
-    messageDiv.style.color = "#fff";
-    messageDiv.style.zIndex = "10000";
-    messageDiv.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.2)";
-    messageDiv.style.opacity = "0";
-    messageDiv.style.transition = "opacity 0.5s ease-in-out";
+    messageDiv.className = "realeyes-message";
 
-    if (type === "success") {
-      messageDiv.style.backgroundColor = "#4caf50";
-    } else if (type === "error") {
-      messageDiv.style.backgroundColor = "#f44336";
-    } else {
-      messageDiv.style.backgroundColor = "#333";
-    }
+    const iconMap = {
+      error: "❌",
+      warning: "⚠️",
+      success: "✅",
+      info: "ℹ️",
+    };
+
+    messageDiv.innerHTML = `
+      <span class="message-icon">${iconMap[type] || iconMap.info}</span>
+      <span class="message-text">${message}</span>
+    `;
+
+    Object.assign(messageDiv.style, {
+      position: "fixed",
+      bottom: "20px",
+      right: "20px",
+      padding: "12px 24px",
+      borderRadius: "8px",
+      color: "#fff",
+      backgroundColor:
+        {
+          error: "#f44336",
+          warning: "#ff9800",
+          success: "#4caf50",
+          info: "#2196f3",
+        }[type] || "#2196f3",
+      zIndex: "2147483647",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+      transition: "all 0.3s ease",
+      opacity: "0",
+      transform: "translateY(20px)",
+    });
 
     document.body.appendChild(messageDiv);
 
-    void messageDiv.offsetWidth;
-
-    messageDiv.style.opacity = "1";
+    requestAnimationFrame(() => {
+      messageDiv.style.opacity = "1";
+      messageDiv.style.transform = "translateY(0)";
+    });
 
     setTimeout(() => {
       messageDiv.style.opacity = "0";
-      messageDiv.addEventListener("transitionend", () => {
-        messageDiv.remove();
-      });
-    }, 3000);
+      messageDiv.style.transform = "translateY(20px)";
+      messageDiv.addEventListener("transitionend", () => messageDiv.remove());
+    }, duration);
   }
 
   // Debounced version of addOrUpdateOverlayToImages
