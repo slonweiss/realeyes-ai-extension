@@ -496,3 +496,128 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Log storage periodically (every 5 minutes)
 setInterval(logAllStoredData, 300000);
+
+// Listen for cookie changes
+chrome.cookies.onChanged.addListener(function (changeInfo) {
+  const { cookie, removed } = changeInfo;
+
+  // Only handle cookies from realeyes.ai domain
+  if (cookie.domain.includes("realeyes.ai")) {
+    if (cookie.name === "opp_access_token") {
+      if (!removed) {
+        // Cookie was added/updated
+        console.log("Auth cookie detected");
+        chrome.storage.local.set({ authToken: cookie.value }, function () {
+          console.log("Auth token saved to local storage");
+
+          // If this was from our auth tab, close it
+          if (authTabId) {
+            chrome.tabs.get(authTabId, function (tab) {
+              if (tab) {
+                chrome.tabs.remove(authTabId);
+              }
+              authTabId = null;
+            });
+          }
+
+          // Notify any open tabs that auth state changed
+          chrome.tabs.query({}, function (tabs) {
+            tabs.forEach((tab) => {
+              chrome.tabs
+                .sendMessage(tab.id, {
+                  action: "authStateChanged",
+                  isAuthenticated: true,
+                })
+                .catch(() => {}); // Ignore errors for tabs that can't receive messages
+            });
+          });
+        });
+      } else {
+        // Cookie was removed - handle logout
+        chrome.storage.local.remove("authToken", function () {
+          console.log("Auth token removed from local storage");
+
+          // Notify tabs of logout
+          chrome.tabs.query({}, function (tabs) {
+            tabs.forEach((tab) => {
+              chrome.tabs
+                .sendMessage(tab.id, {
+                  action: "authStateChanged",
+                  isAuthenticated: false,
+                })
+                .catch(() => {});
+            });
+          });
+        });
+      }
+    }
+  }
+});
+
+// Handle login requests
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "initiateLogin") {
+    // Create auth tab if not exists
+    if (!authTabId) {
+      chrome.tabs.create(
+        {
+          url: "https://realeyes.ai/upload-image",
+          active: true,
+        },
+        function (tab) {
+          authTabId = tab.id;
+
+          // Set up listener for URL changes to detect successful login
+          chrome.tabs.onUpdated.addListener(function onTabUpdate(
+            tabId,
+            changeInfo
+          ) {
+            if (tabId === authTabId && changeInfo.url) {
+              if (changeInfo.url.includes("realeyes.ai/upload-image")) {
+                // Check for auth cookie
+                chrome.cookies.get(
+                  {
+                    url: "https://realeyes.ai",
+                    name: "opp_access_token",
+                  },
+                  function (cookie) {
+                    if (cookie) {
+                      // Store the auth token
+                      chrome.storage.local.set(
+                        { authToken: cookie.value },
+                        function () {
+                          console.log("Auth token saved to local storage");
+
+                          // Close the auth tab
+                          chrome.tabs.remove(authTabId);
+                          authTabId = null;
+
+                          // Notify tabs of successful login
+                          chrome.tabs.query({}, function (tabs) {
+                            tabs.forEach((tab) => {
+                              chrome.tabs
+                                .sendMessage(tab.id, {
+                                  action: "authStateChanged",
+                                  isAuthenticated: true,
+                                })
+                                .catch(() => {}); // Ignore errors for tabs that can't receive messages
+                            });
+                          });
+                        }
+                      );
+                    }
+                  }
+                );
+              }
+            }
+          });
+        }
+      );
+    } else {
+      // Focus existing auth tab
+      chrome.tabs.update(authTabId, { active: true });
+    }
+    sendResponse({ success: true });
+    return true;
+  }
+});

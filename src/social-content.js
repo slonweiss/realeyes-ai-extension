@@ -256,8 +256,19 @@
         e.stopPropagation();
         e.preventDefault();
 
+        // Check for any existing popups associated with this overlay
+        const existingPopup = document.querySelector(
+          `.consent-popup[data-overlay-id="${overlay.dataset.overlayId}"]`
+        );
+
+        // If there's an existing popup, remove it and return
+        if (existingPopup) {
+          existingPopup.remove();
+          return;
+        }
+
         const highestQualityUrl = getHighestQualityImageUrl(img);
-        const uniqueId = `overlay-${index}-${Date.now()}`;
+        const uniqueId = overlay.dataset.overlayId;
 
         try {
           const { authToken } = await chrome.storage.local.get(["authToken"]);
@@ -269,6 +280,10 @@
 
             const authPopup = document.createElement("div");
             authPopup.className = "consent-popup";
+            authPopup.setAttribute(
+              "data-overlay-id",
+              overlay.dataset.overlayId
+            ); // Add overlay ID to auth popup
             authPopup.innerHTML = `
               <div class="close-x">×</div>
               <p class="consent-message">Please log in to analyze images</p>
@@ -334,12 +349,12 @@
             // Close handlers
             closeButton.addEventListener("click", cleanup);
             loginButton.addEventListener("click", () => {
-              // Send message to background script to open popup
+              // Send message to background script to open new tab
               chrome.runtime.sendMessage(
-                { action: "openExtensionPopup" },
+                { action: "initiateLogin" },
                 (response) => {
-                  if (chrome.runtime.lastError) {
-                    // Fallback to opening the website if popup fails
+                  if (chrome.runtime.lastError || !response?.success) {
+                    // Fallback to direct window.open if message fails
                     window.open("https://realeyes.ai/upload-image", "_blank");
                   }
                 }
@@ -623,7 +638,6 @@
 
     return popup;
   }
-
   // Send image data for analysis
   function sendImageForAnalysis(url, popup, storeData) {
     let filename = url.split("/").pop().split("?")[0];
@@ -1716,7 +1730,7 @@
     </div>
   `;
 
-  // Helper function to show auth popup
+  // Update the auth popup HTML and handlers
   function showAuthPopup() {
     const authPopup = document.createElement("div");
     authPopup.className = "consent-popup";
@@ -1727,42 +1741,42 @@
         <button class="confirm-btn">Log In</button>
         <button class="cancel-btn">Cancel</button>
       </div>
-      <div style="color: #666; font-size: 12px; margin-top: 10px; text-align: center;">
-        <svg width="16" height="16" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
-        </svg>
-        Or click the RealEyes icon in your browser toolbar
-      </div>
     `;
 
     document.body.appendChild(authPopup);
 
-    // Add hover effect and click handler for the login button
-    const loginButton = authPopup.querySelector("#loginButton");
-    loginButton.addEventListener("mouseover", () => {
-      loginButton.style.backgroundColor = "#0d8bf2";
-    });
-    loginButton.addEventListener("mouseout", () => {
-      loginButton.style.backgroundColor = "#2196f3";
-    });
+    // Add click handler for login button
+    const loginButton = authPopup.querySelector(".confirm-btn");
     loginButton.addEventListener("click", () => {
-      // Send message to background script to open popup
-      chrome.runtime.sendMessage(
-        { action: "openExtensionPopup" },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            // Fallback to opening the website if popup fails
-            window.open("https://realeyes.ai/upload-image", "_blank");
-          }
+      // Send message to background script to open new tab
+      chrome.runtime.sendMessage({ action: "initiateLogin" }, (response) => {
+        if (chrome.runtime.lastError || !response?.success) {
+          // Fallback to direct window.open if message fails
+          window.open("https://realeyes.ai/upload-image", "_blank");
         }
-      );
+      });
       authPopup.remove();
     });
 
-    // Add click handler for close button
+    // Add click handler for close/cancel buttons
     const closeButton = authPopup.querySelector(".close-x");
-    closeButton.addEventListener("click", () => {
-      authPopup.remove();
-    });
+    const cancelButton = authPopup.querySelector(".cancel-btn");
+
+    const cleanup = () => authPopup.remove();
+    closeButton.addEventListener("click", cleanup);
+    cancelButton.addEventListener("click", cleanup);
   }
+
+  // Add listener for auth state changes
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "authStateChanged") {
+      if (request.isAuthenticated) {
+        console.log("User authenticated, refreshing overlays");
+        initializeOverlay();
+      } else {
+        console.log("User logged out, removing overlays");
+        removeAllOverlays();
+      }
+    }
+  });
 })();

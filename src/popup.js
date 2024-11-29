@@ -202,18 +202,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Event listener for login button
   if (loginButton) {
-    loginButton.addEventListener("click", async function () {
-      console.log("Login button clicked");
-      const hasCookie = await checkExistingCookie();
-      if (hasCookie) {
-        showSettings();
-      } else {
-        chrome.tabs.create({ url: "https://realeyes.ai/upload-image" });
-        window.close();
-      }
+    loginButton.addEventListener("click", function () {
+      chrome.runtime.sendMessage(
+        { action: "initiateLogin" },
+        function (response) {
+          if (response.success) {
+            window.close(); // Close popup after initiating login
+          }
+        }
+      );
     });
-  } else {
-    console.error("Login button not found");
   }
 
   // Event listener for enable overlay toggle
@@ -287,18 +285,21 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // Add logout button handler
+  // Event listener for logout button
   if (logoutButton) {
     logoutButton.addEventListener("click", function () {
-      // Clear local storage auth token
+      // Remove local storage auth token
       chrome.storage.local.remove("authToken", function () {
         console.log("Auth token removed");
 
-        // Remove the opp_access_token cookie
+        // Remove the cookie
         chrome.cookies.remove(
-          { url: "https://realeyes.ai", name: "opp_access_token" },
-          function (details) {
-            // Construct logout URL with proper endpoint
+          {
+            url: "https://realeyes.ai",
+            name: "opp_access_token",
+          },
+          function () {
+            // Construct logout URL
             const logoutUrl = new URL("https://signin.realeyes.ai/logout");
             logoutUrl.searchParams.append(
               "client_id",
@@ -306,7 +307,7 @@ document.addEventListener("DOMContentLoaded", function () {
             );
             logoutUrl.searchParams.append("logout_uri", "https://realeyes.ai");
 
-            // Open logout URL in new tab and close popup
+            // Open logout URL and close popup
             chrome.tabs.create({ url: logoutUrl.toString() });
             window.close();
           }
