@@ -1,3 +1,4 @@
 .cursorrules
 /node_modules
 dist.zip
+/dist

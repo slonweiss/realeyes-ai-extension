@@ -815,7 +815,7 @@
           titleText = "This content is likely real.";
         } else if (probability < 66) {
           confidenceColor = "#ffc107";
-          titleText = "This content is uncertain—proceed with caution.";
+          titleText = "This content is uncertain.";
         } else {
           confidenceColor = "#dc3545";
           titleText = "This content is likely a deepfake.";
