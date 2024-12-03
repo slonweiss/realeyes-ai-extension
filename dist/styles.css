@@ -251,6 +251,7 @@
   transition: opacity 0.3s ease-out;
   max-height: 90vh !important;
   overflow-y: auto !important;
+  min-height: min-content !important; /* Added to ensure proper sizing */
 }
 
 .analysis-results::-webkit-scrollbar {
@@ -557,13 +558,17 @@
 }
 
 .feedback-section {
-  margin-top: 20px !important;
+  margin-top: auto !important; /* Changed from 20px to auto to push to bottom */
   text-align: center !important;
   background-color: #f8f9fa !important;
   border-top: 1px solid #e9ecef !important;
-  padding: 12px 12px 12px 12px !important;
+  padding: 12px !important;
   border-radius: 0 0 8px 8px !important;
-  margin: 15px -16px -16px -16px !important;
+  margin: auto -16px -16px -16px !important; /* Changed top margin to auto */
+  width: calc(
+    100% + 32px
+  ) !important; /* Added to account for negative margins */
+  box-sizing: border-box !important;
 }
 
 .feedback-section p {

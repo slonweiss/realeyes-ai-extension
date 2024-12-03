@@ -810,7 +810,7 @@
         // Determine color and text based on probability
         let confidenceColor;
         let titleText;
-        if (probability < 33) {
+        if (probability < 10) {
           confidenceColor = "#28a745";
           titleText = "This content is likely real.";
         } else if (probability < 66) {
