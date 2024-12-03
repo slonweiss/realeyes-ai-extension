@@ -107,6 +107,9 @@
         transition: background-color 0.3s, color 0.3s;
         font-size: 14px;
         margin-top: 10px;
+        position: relative;
+        text-align: center;
+        pointer-events: auto;
       }
       #save:hover,
       #login:hover {
@@ -251,6 +254,7 @@
         transition: opacity 0.3s ease;
         text-align: center;
         z-index: 1000;
+        pointer-events: none;
       }
 
       .save-indicator.show {

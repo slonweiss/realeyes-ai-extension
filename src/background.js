@@ -2,6 +2,8 @@ import { jwtVerify, createRemoteJWKSet } from "jose";
 
 let authTabId = null;
 
+const AUTH_URL = "https://realeyes.ai/upload-image";
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("Background received message:", request);
   if (request.action === "showNotification") {
@@ -297,10 +299,6 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 // Function to log all stored data
 function logAllStoredData() {
   chrome.storage.local.get(null, function (items) {
-    console.log(
-      "All stored data (from background):",
-      JSON.stringify(items, null, 2)
-    );
     console.log("Storage size:", Object.keys(items).length);
   });
 }
@@ -621,3 +619,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 });
+
+// Add error handling for tab operations
+async function createOrUpdateTab(url) {
+  try {
+    const existingTabs = await chrome.tabs.query({ url: url });
+
+    if (existingTabs.length > 0) {
+      return await chrome.tabs.update(existingTabs[0].id, { active: true });
+    } else {
+      return await chrome.tabs.create({ url: url });
+    }
+  } catch (error) {
+    console.error("Error managing tab:", error);
+    // Create new tab as fallback
+    return await chrome.tabs.create({ url: url });
+  }
+}
+
+// Update your login handler
+async function handleLogin() {
+  try {
+    // Close existing auth tab if it exists
+    if (authTabId) {
+      try {
+        await chrome.tabs.remove(authTabId);
+      } catch (e) {
+        console.log("No existing auth tab to close");
+      }
+    }
+
+    // Create new auth tab
+    const tab = await chrome.tabs.create({ url: AUTH_URL });
+    authTabId = tab.id;
+
+    // Listen for tab close
+    chrome.tabs.onRemoved.addListener((tabId) => {
+      if (tabId === authTabId) {
+        authTabId = null;
+      }
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    authTabId = null;
+  }
+}

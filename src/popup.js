@@ -202,16 +202,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Event listener for login button
   if (loginButton) {
-    loginButton.addEventListener("click", function () {
-      chrome.runtime.sendMessage(
-        { action: "initiateLogin" },
-        function (response) {
-          if (response.success) {
-            window.close(); // Close popup after initiating login
-          }
-        }
-      );
+    loginButton.addEventListener("click", async function () {
+      try {
+        await chrome.runtime.sendMessage({ action: "initiateLogin" });
+        window.close();
+      } catch (error) {
+        console.error("Login click error:", error);
+      }
     });
+  } else {
+    console.error("Login button not found");
   }
 
   // Event listener for enable overlay toggle
