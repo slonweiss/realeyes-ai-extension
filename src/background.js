@@ -1,17 +1,21 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 
 let authTabId = null;
+let authTabListeners = new Map(); // Store cleanup functions for each tab
 
 const AUTH_URL = "https://realeyes.ai/upload-image";
 
 // Utility function to safely remove tabs
 function removeTabIfExists(tabId) {
+  if (!tabId) return;
+
   chrome.tabs.get(tabId, function (tab) {
     if (chrome.runtime.lastError) {
-      console.error(
-        `Tab with id ${tabId} does not exist:`,
-        chrome.runtime.lastError
-      );
+      console.log(`Tab ${tabId} does not exist, no need to remove`);
+      // Make sure to clear authTabId if this was the auth tab
+      if (tabId === authTabId) {
+        authTabId = null;
+      }
     } else {
       chrome.tabs.remove(tabId);
     }
@@ -350,82 +354,131 @@ function checkAuthentication() {
   });
 }
 
-// Function to initiate authentication
-function initiateAuthentication() {
-  console.log("Initiating authentication");
-  if (authTabId !== null) {
-    console.log("Authentication tab already open, focusing on it");
-    chrome.tabs.update(authTabId, { active: true });
-    return;
+// Helper to clean up tab listeners
+function cleanupTabListeners(tabId) {
+  if (authTabListeners.has(tabId)) {
+    const cleanupFns = authTabListeners.get(tabId);
+    cleanupFns.forEach((fn) => fn());
+    authTabListeners.delete(tabId);
   }
-
-  chrome.tabs.create(
-    { url: "https://realeyes.ai/upload-image" },
-    function (tab) {
-      if (chrome.runtime.lastError) {
-        console.error(
-          "Error creating authentication tab:",
-          chrome.runtime.lastError
-        );
-        return;
-      }
-      console.log("Authentication tab created:", tab.id);
-      authTabId = tab.id;
-
-      chrome.tabs.onRemoved.addListener(function (closedTabId) {
-        if (closedTabId === authTabId) {
-          console.log("Authentication tab closed");
-          authTabId = null;
-        }
-      });
-
-      chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
-        if (
-          tabId === tab.id &&
-          info.url &&
-          info.url.startsWith("https://realeyes.ai/upload-image")
-        ) {
-          console.log("Authentication page loaded, checking for auth token");
-          chrome.tabs.onUpdated.removeListener(listener);
-          checkForAuthToken(tabId);
-        }
-      });
-    }
-  );
 }
 
-function checkForAuthToken(tabId, retryCount = 0) {
+// Handle tab removal
+function handleTabRemoval(tabId) {
+  if (tabId === authTabId) {
+    console.log("Auth tab was closed, cleaning up");
+    cleanupTabListeners(tabId);
+    authTabId = null;
+  }
+}
+
+// Main authentication handler
+async function initiateAuthentication() {
+  console.log("Initiating authentication");
+
+  try {
+    // Clean up any existing auth tab
+    if (authTabId !== null) {
+      try {
+        const tab = await chrome.tabs.get(authTabId);
+        if (tab) {
+          await chrome.tabs.remove(authTabId);
+        }
+      } catch (e) {
+        console.log("Previous auth tab already closed");
+      }
+      cleanupTabListeners(authTabId);
+      authTabId = null;
+    }
+
+    // Create new auth tab
+    const tab = await chrome.tabs.create({ url: AUTH_URL });
+    authTabId = tab.id;
+
+    // Set up listeners
+    const removeListener = (tabId) => handleTabRemoval(tabId);
+    const updateListener = (tabId, changeInfo) => {
+      if (
+        tabId === authTabId &&
+        changeInfo.url &&
+        changeInfo.url.startsWith(AUTH_URL)
+      ) {
+        checkForAuthToken(tabId);
+      }
+    };
+
+    // Store cleanup functions
+    authTabListeners.set(authTabId, [
+      () => chrome.tabs.onRemoved.removeListener(removeListener),
+      () => chrome.tabs.onUpdated.removeListener(updateListener),
+    ]);
+
+    // Add listeners
+    chrome.tabs.onRemoved.addListener(removeListener);
+    chrome.tabs.onUpdated.addListener(updateListener);
+  } catch (error) {
+    console.error("Error in initiateAuthentication:", error);
+    authTabId = null;
+    throw error;
+  }
+}
+
+// Update message handler for initiateLogin
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "initiateLogin") {
+    initiateAuthentication()
+      .then(() => sendResponse({ success: true }))
+      .catch((error) => {
+        console.error("Login initiation failed:", error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Will respond asynchronously
+  }
+  // ... rest of your message handlers ...
+});
+
+// Update checkForAuthToken to handle errors better
+async function checkForAuthToken(tabId, retryCount = 0) {
   const MAX_RETRIES = 5;
-  console.log("Checking for auth token");
-  chrome.cookies.get(
-    { url: "https://realeyes.ai", name: "opp_access_token" },
-    async function (cookie) {
-      if (cookie) {
-        console.log("Auth token found in cookie:", cookie.value);
-        if (await validateJWT(cookie.value)) {
-          chrome.storage.local.set({ authToken: cookie.value }, function () {
-            console.log("Valid auth token saved to local storage");
-            removeTabIfExists(tabId);
-          });
-        } else {
-          console.log("Invalid or expired auth token");
-          chrome.storage.local.remove("authToken");
-          removeTabIfExists(tabId);
+
+  try {
+    const cookie = await chrome.cookies.get({
+      url: "https://realeyes.ai",
+      name: "opp_access_token",
+    });
+
+    if (cookie) {
+      console.log("Auth token found in cookie");
+      const isValid = await validateJWT(cookie.value);
+
+      if (isValid) {
+        await chrome.storage.local.set({ authToken: cookie.value });
+        console.log("Valid auth token saved to local storage");
+        cleanupTabListeners(tabId);
+        if (tabId === authTabId) {
+          try {
+            await chrome.tabs.remove(tabId);
+          } catch (e) {
+            console.log("Tab already closed");
+          }
+          authTabId = null;
         }
       } else {
-        console.log("Auth token not found");
+        console.log("Invalid or expired auth token");
+        await chrome.storage.local.remove("authToken");
         if (retryCount < MAX_RETRIES) {
-          console.log(
-            `Retrying in 1 second (attempt ${retryCount + 1}/${MAX_RETRIES})`
-          );
           setTimeout(() => checkForAuthToken(tabId, retryCount + 1), 1000);
-        } else {
-          console.log("Max retries reached. Authentication failed.");
-          removeTabIfExists(tabId);
         }
       }
+    } else if (retryCount < MAX_RETRIES) {
+      setTimeout(() => checkForAuthToken(tabId, retryCount + 1), 1000);
     }
-  );
+  } catch (error) {
+    console.error("Error checking auth token:", error);
+    if (retryCount < MAX_RETRIES) {
+      setTimeout(() => checkForAuthToken(tabId, retryCount + 1), 1000);
+    }
+  }
 }
 
 async function verifyToken(token) {
@@ -593,74 +646,6 @@ chrome.cookies.onChanged.addListener(function (changeInfo) {
         });
       }
     }
-  }
-});
-
-// Handle login requests
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "initiateLogin") {
-    // Create auth tab if not exists
-    if (!authTabId) {
-      chrome.tabs.create(
-        {
-          url: "https://realeyes.ai/upload-image",
-          active: true,
-        },
-        function (tab) {
-          authTabId = tab.id;
-
-          // Set up listener for URL changes to detect successful login
-          chrome.tabs.onUpdated.addListener(function onTabUpdate(
-            tabId,
-            changeInfo
-          ) {
-            if (tabId === authTabId && changeInfo.url) {
-              if (changeInfo.url.includes("realeyes.ai/upload-image")) {
-                // Check for auth cookie
-                chrome.cookies.get(
-                  {
-                    url: "https://realeyes.ai",
-                    name: "opp_access_token",
-                  },
-                  function (cookie) {
-                    if (cookie) {
-                      // Store the auth token
-                      chrome.storage.local.set(
-                        { authToken: cookie.value },
-                        function () {
-                          console.log("Auth token saved to local storage");
-
-                          // Close the auth tab
-                          chrome.tabs.remove(authTabId);
-                          authTabId = null;
-
-                          // Notify tabs of successful login
-                          chrome.tabs.query({}, function (tabs) {
-                            tabs.forEach((tab) => {
-                              chrome.tabs
-                                .sendMessage(tab.id, {
-                                  action: "authStateChanged",
-                                  isAuthenticated: true,
-                                })
-                                .catch(() => {}); // Ignore errors for tabs that can't receive messages
-                            });
-                          });
-                        }
-                      );
-                    }
-                  }
-                );
-              }
-            }
-          });
-        }
-      );
-    } else {
-      // Focus existing auth tab
-      chrome.tabs.update(authTabId, { active: true });
-    }
-    sendResponse({ success: true });
-    return true;
   }
 });
 
