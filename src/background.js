@@ -4,6 +4,34 @@ let authTabId = null;
 
 const AUTH_URL = "https://realeyes.ai/upload-image";
 
+// Utility function to safely remove tabs
+function removeTabIfExists(tabId) {
+  chrome.tabs.get(tabId, function (tab) {
+    if (chrome.runtime.lastError) {
+      console.error(
+        `Tab with id ${tabId} does not exist:`,
+        chrome.runtime.lastError
+      );
+    } else {
+      chrome.tabs.remove(tabId);
+    }
+  });
+}
+
+// Utility function to safely update tabs
+function updateTabIfExists(tabId, updateProperties) {
+  chrome.tabs.get(tabId, function (tab) {
+    if (chrome.runtime.lastError) {
+      console.error(
+        `Tab with id ${tabId} does not exist:`,
+        chrome.runtime.lastError
+      );
+    } else {
+      chrome.tabs.update(tabId, updateProperties);
+    }
+  });
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("Background received message:", request);
   if (request.action === "showNotification") {
@@ -126,7 +154,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === "authenticationComplete") {
-    chrome.tabs.remove(sender.tab.id);
+    if (sender.tab && sender.tab.id) {
+      chrome.tabs.remove(sender.tab.id);
+    } else if (authTabId !== null) {
+      // Use the stored authTabId if sender.tab.id is not available
+      chrome.tabs.remove(authTabId);
+      authTabId = null;
+    } else {
+      console.error(
+        "Cannot close tab: sender.tab.id is undefined and authTabId is null"
+      );
+    }
   }
 
   if (request.action === "initiateAuthentication") {
@@ -324,14 +362,23 @@ function initiateAuthentication() {
   chrome.tabs.create(
     { url: "https://realeyes.ai/upload-image" },
     function (tab) {
+      if (chrome.runtime.lastError) {
+        console.error(
+          "Error creating authentication tab:",
+          chrome.runtime.lastError
+        );
+        return;
+      }
       console.log("Authentication tab created:", tab.id);
       authTabId = tab.id;
+
       chrome.tabs.onRemoved.addListener(function (closedTabId) {
         if (closedTabId === authTabId) {
           console.log("Authentication tab closed");
           authTabId = null;
         }
       });
+
       chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
         if (
           tabId === tab.id &&
@@ -356,16 +403,14 @@ function checkForAuthToken(tabId, retryCount = 0) {
       if (cookie) {
         console.log("Auth token found in cookie:", cookie.value);
         if (await validateJWT(cookie.value)) {
-          // Store the auth token securely in extension's local storage
           chrome.storage.local.set({ authToken: cookie.value }, function () {
             console.log("Valid auth token saved to local storage");
-            chrome.tabs.remove(tabId);
+            removeTabIfExists(tabId);
           });
         } else {
           console.log("Invalid or expired auth token");
           chrome.storage.local.remove("authToken");
-          chrome.tabs.remove(tabId);
-          // Optionally, notify the user that authentication failed
+          removeTabIfExists(tabId);
         }
       } else {
         console.log("Auth token not found");
@@ -376,8 +421,7 @@ function checkForAuthToken(tabId, retryCount = 0) {
           setTimeout(() => checkForAuthToken(tabId, retryCount + 1), 1000);
         } else {
           console.log("Max retries reached. Authentication failed.");
-          chrome.tabs.remove(tabId);
-          // Optionally, notify the user that authentication failed after retries
+          removeTabIfExists(tabId);
         }
       }
     }

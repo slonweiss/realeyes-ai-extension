@@ -2,8 +2,6 @@ const path = require("path");
 const CopyPlugin = require("copy-webpack-plugin");
 
 module.exports = {
-  mode: "production",
-  devtool: "source-map",
   entry: {
     background: "./src/background.js",
     "social-content": "./src/social-content.js",
@@ -13,6 +11,21 @@ module.exports = {
   output: {
     filename: "[name].js",
     path: path.resolve(__dirname, "dist"),
+    clean: true,
+  },
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: "babel-loader",
+          options: {
+            presets: ["@babel/preset-env"],
+          },
+        },
+      },
+    ],
   },
   plugins: [
     new CopyPlugin({
@@ -27,10 +40,4 @@ module.exports = {
       ],
     }),
   ],
-  resolve: {
-    fallback: {
-      crypto: require.resolve("crypto-browserify"),
-      stream: require.resolve("stream-browserify"),
-    },
-  },
 };

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "RealEyes.ai — Detect Deepfakes Across Online Platforms",
   "description": "Adds an overlay icon on images which allows the image to be analyzed for deepfake manipulation",
-  "version": "1.5.1",
+  "version": "1.6",
   "permissions": [
     "activeTab",
     "storage",
@@ -55,7 +55,8 @@
     "default_popup": "popup.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; frame-ancestors 'none'"
