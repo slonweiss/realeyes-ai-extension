@@ -827,6 +827,15 @@
         }
       }
 
+      const probabilityText = inferenceEndpointsDown
+        ? `<span style="font-size: 14px; white-space: normal; text-align: center;">Inference endpoints down</span>`
+        : `${probability}%
+           <div class="probability-label" style="
+             font-size: 12px;
+             color: #333;
+             margin-top: 10px;
+           ">Deepfake Probability</div>`;
+
       popup.innerHTML = `
                 <div class="close-x">×</div>
                 <div class="analysis-title" style="color: ${confidenceColor}">${titleText}</div>
@@ -861,17 +870,8 @@
           </svg>
           <div class="probability-text">
             <div class="probability-value" style="color: ${confidenceColor}">
-              ${
-                inferenceEndpointsDown
-                  ? `<span style="font-size: 14px; white-space: normal; text-align: center;">Inference endpoints down</span>`
-                  : `${probability}%`
-              }
+              ${probabilityText}
             </div>
-            <div class="probability-label" style="
-              font-size: 12px;
-              color: #333;
-              margin-top: 10px;
-            ">Deepfake Probability</div>
           </div>
         </div>
 
