@@ -788,28 +788,33 @@
 
     if (status === "error") {
       popup.innerHTML = `
-            <div class="error-container">
-                <div class="close-x">×</div>
-                <p class="error">${results}</p>
-            </div>
-        `;
-    } else {
+        <div class="error-container">
+          <div class="close-x">×</div>
+          <p class="error">${results}</p>
+        </div>
+      `;
+    } else if (status === "success" && results) {
       // Get the analysis results, handling potential null/undefined values
       const standardAnalysis = results.sageMakerAnalysis || { probability: 0 };
       const ufdAnalysis = results.sageMakerAnalysisUFD || { probability: 0 };
 
-      // Determine which model to use based on available results
+      // Check if both analyses returned 0 probability
+      const inferenceEndpointsDown =
+        standardAnalysis.probability === 0 && ufdAnalysis.probability === 0;
+
+      // Use the higher probability model
       const analysis =
         standardAnalysis.probability > ufdAnalysis.probability
           ? standardAnalysis
           : ufdAnalysis;
 
-      if (analysis) {
-        const probability = (analysis.probability * 100).toFixed(1);
+      const probability = (analysis.probability * 100).toFixed(1);
 
-        // Determine color and text based on probability
-        let confidenceColor;
-        let titleText;
+      // Determine color and text based on probability or endpoint status
+      let confidenceColor = "#666"; // Default gray for unavailable
+      let titleText = "This content could not be analyzed.";
+
+      if (!inferenceEndpointsDown) {
         if (probability < 10) {
           confidenceColor = "#28a745";
           titleText = "This content is likely real.";
@@ -820,46 +825,55 @@
           confidenceColor = "#dc3545";
           titleText = "This content is likely a deepfake.";
         }
+      }
 
-        popup.innerHTML = `
+      popup.innerHTML = `
                 <div class="close-x">×</div>
                 <div class="analysis-title" style="color: ${confidenceColor}">${titleText}</div>
 
-                <div class="probability-circle">
-                    <svg width="150" height="150" viewBox="0 0 150 150">
-                        <circle
-                            cx="75"
-                            cy="75"
-                            r="70"
-                            stroke="#E6E6E6"
-                            stroke-width="10"
-                            fill="none"
-                        />
-                        <circle
-                            cx="75"
-                            cy="75"
-                            r="70"
-                            stroke="${confidenceColor}"
-                            stroke-width="10"
-                            fill="none"
-                            stroke-linecap="round"
-                            stroke-dasharray="439.82"
-                            stroke-dashoffset="${
-                              439.82 * (1 - probability / 100)
-                            }"
-                            transform="rotate(-90 75 75)"
-                            style="transition: stroke-dashoffset 1s"
-                        />
-                    </svg>
-                    <div class="probability-text">
-                        <div class="probability-value" style="color: ${confidenceColor}">${probability}%</div>
-                        <div class="probability-label" style="
-                            font-size: 12px;
-                            color: #333;
-                            margin-top: 10px;
-                        ">Deepfake Probability</div>
-                    </div>
-                </div>
+        <div class="probability-circle">
+          <svg width="150" height="150" viewBox="0 0 150 150">
+            <circle
+              cx="75"
+              cy="75"
+              r="70"
+              stroke="#E6E6E6"
+              stroke-width="10"
+              fill="none"
+            />
+            <circle
+              cx="75"
+              cy="75"
+              r="70"
+              stroke="${confidenceColor}"
+              stroke-width="10"
+              fill="none"
+              stroke-linecap="round"
+              stroke-dasharray="439.82"
+              stroke-dashoffset="${
+                inferenceEndpointsDown
+                  ? 439.82
+                  : 439.82 * (1 - probability / 100)
+              }"
+              transform="rotate(-90 75 75)"
+              style="transition: stroke-dashoffset 1s"
+            />
+          </svg>
+          <div class="probability-text">
+            <div class="probability-value" style="color: ${confidenceColor}">
+              ${
+                inferenceEndpointsDown
+                  ? `<span style="font-size: 14px; white-space: normal; text-align: center;">Inference endpoints down</span>`
+                  : `${probability}%`
+              }
+            </div>
+            <div class="probability-label" style="
+              font-size: 12px;
+              color: #333;
+              margin-top: 10px;
+            ">Deepfake Probability</div>
+          </div>
+        </div>
 
                 <div class="confidence-indicators">
                     <div class="indicator real">
@@ -1063,9 +1077,9 @@
                 </div>
             `;
 
-        // Add CSS for the close-x
-        const style = document.createElement("style");
-        style.textContent = `
+      // Add CSS for the close-x
+      const style = document.createElement("style");
+      style.textContent = `
                 .close-x {
                     position: absolute;
                     top: 5px;
@@ -1079,129 +1093,127 @@
                     color: #333;
                 }
             `;
-        document.head.appendChild(style);
+      document.head.appendChild(style);
 
-        // Add event listeners for feedback buttons
-        const feedbackBtns = popup.querySelectorAll(".feedback-btn");
-        const feedbackComment = popup.querySelector(".feedback-comment"); // Changed from textarea to container
-        const submitBtn = popup.querySelector(".submit-feedback-btn");
-        const textarea = popup.querySelector("textarea");
-        const charCounter = popup.querySelector(".char-counter");
+      // Add event listeners for feedback buttons
+      const feedbackBtns = popup.querySelectorAll(".feedback-btn");
+      const feedbackComment = popup.querySelector(".feedback-comment"); // Changed from textarea to container
+      const submitBtn = popup.querySelector(".submit-feedback-btn");
+      const textarea = popup.querySelector("textarea");
+      const charCounter = popup.querySelector(".char-counter");
 
-        feedbackBtns.forEach((btn) => {
-          btn.addEventListener("click", () => {
-            // Remove active class from all buttons
-            feedbackBtns.forEach((b) => b.classList.remove("active"));
-            // Add active class to clicked button
-            btn.classList.add("active");
-            // Show comment section
-            feedbackComment.style.display = "block"; // Changed from textarea to container
-          });
+      feedbackBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          // Remove active class from all buttons
+          feedbackBtns.forEach((b) => b.classList.remove("active"));
+          // Add active class to clicked button
+          btn.classList.add("active");
+          // Show comment section
+          feedbackComment.style.display = "block"; // Changed from textarea to container
         });
+      });
 
-        textarea.addEventListener("input", () => {
-          const length = textarea.value.length;
-          const remaining = 100 - length;
-          charCounter.textContent = `${length}/100 characters`;
+      textarea.addEventListener("input", () => {
+        const length = textarea.value.length;
+        const remaining = 100 - length;
+        charCounter.textContent = `${length}/100 characters`;
 
-          // Update counter color based on remaining characters
-          charCounter.classList.remove("near-limit", "at-limit");
-          if (length >= 90) {
-            charCounter.classList.add("at-limit");
-          } else if (length >= 75) {
-            charCounter.classList.add("near-limit");
-          }
-        });
+        // Update counter color based on remaining characters
+        charCounter.classList.remove("near-limit", "at-limit");
+        if (length >= 90) {
+          charCounter.classList.add("at-limit");
+        } else if (length >= 75) {
+          charCounter.classList.add("near-limit");
+        }
+      });
 
-        submitBtn.addEventListener("click", async () => {
-          // Disable the submit button and show loading state
-          submitBtn.disabled = true;
-          submitBtn.innerHTML = `
+      submitBtn.addEventListener("click", async () => {
+        // Disable the submit button and show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `
             <span class="spinner"></span>
             Sending...
           `;
 
-          // Get auth token from storage
-          const { authToken } = await chrome.storage.local.get(["authToken"]);
-          console.log(
-            "Retrieved authToken:",
-            authToken ? "Token exists" : "No token found"
-          );
+        // Get auth token from storage
+        const { authToken } = await chrome.storage.local.get(["authToken"]);
+        console.log(
+          "Retrieved authToken:",
+          authToken ? "Token exists" : "No token found"
+        );
 
-          if (!authToken) {
-            console.error("No auth token found");
-            submitBtn.innerHTML = "Error: Please log in";
-            return;
-          }
+        if (!authToken) {
+          console.error("No auth token found");
+          submitBtn.innerHTML = "Error: Please log in";
+          return;
+        }
 
-          // Decode JWT and get userId
-          const decodedToken = decodeJWT(authToken);
-          const userId = decodedToken?.username || null;
-          console.log("Final userId to be submitted:", userId);
+        // Decode JWT and get userId
+        const decodedToken = decodeJWT(authToken);
+        const userId = decodedToken?.username || null;
+        console.log("Final userId to be submitted:", userId);
 
-          const feedbackBtns = popup.querySelectorAll(".feedback-btn");
-          const feedbackComment = popup.querySelector("textarea");
-          const imageHash = feedbackBtns[0].dataset.imageHash;
-          const selectedFeedback = Array.from(feedbackBtns)
-            .find((btn) => btn.classList.contains("active"))
-            ?.getAttribute("data-value");
-          const comment = feedbackComment?.value?.trim() || "";
+        const feedbackBtns = popup.querySelectorAll(".feedback-btn");
+        const feedbackComment = popup.querySelector("textarea");
+        const imageHash = feedbackBtns[0].dataset.imageHash;
+        const selectedFeedback = Array.from(feedbackBtns)
+          .find((btn) => btn.classList.contains("active"))
+          ?.getAttribute("data-value");
+        const comment = feedbackComment?.value?.trim() || "";
 
-          if (!selectedFeedback) {
-            console.error("No feedback selected");
-            return;
-          }
+        if (!selectedFeedback) {
+          console.error("No feedback selected");
+          return;
+        }
 
-          console.log("Submitting feedback with data:", {
-            imageHash,
-            feedbackType: selectedFeedback,
-            comment,
-            userId,
-          });
+        console.log("Submitting feedback with data:", {
+          imageHash,
+          feedbackType: selectedFeedback,
+          comment,
+          userId,
+        });
 
-          try {
-            // Send message to background script
-            chrome.runtime.sendMessage(
-              {
-                action: "submitFeedback",
-                feedbackData: {
-                  imageHash,
-                  feedbackType: selectedFeedback,
-                  comment,
-                  userId,
-                },
-                origin: window.location.origin,
+        try {
+          // Send message to background script
+          chrome.runtime.sendMessage(
+            {
+              action: "submitFeedback",
+              feedbackData: {
+                imageHash,
+                feedbackType: selectedFeedback,
+                comment,
+                userId,
               },
-              (response) => {
-                console.log("Feedback submission response:", response);
-                const feedbackSection =
-                  popup.querySelector(".feedback-section");
-                feedbackSection.style.marginTop = "0";
+              origin: window.location.origin,
+            },
+            (response) => {
+              console.log("Feedback submission response:", response);
+              const feedbackSection = popup.querySelector(".feedback-section");
+              feedbackSection.style.marginTop = "0";
 
-                if (response.success) {
-                  let iconColor, title, message;
+              if (response.success) {
+                let iconColor, title, message;
 
-                  switch (response.data.message) {
-                    case "Feedback already received":
-                      iconColor = "#3498db"; // Primary blue
-                      title = "Already Submitted";
-                      message =
-                        "You've already provided feedback for this image";
-                      break;
-                    case "Feedback updated successfully":
-                      iconColor = "#2196F3"; // Material blue
-                      title = "Feedback Updated";
-                      message = "Your feedback has been updated successfully";
-                      break;
-                    case "Feedback submitted successfully":
-                    default:
-                      iconColor = "#4CAF50"; // Green
-                      title = "Thank you!";
-                      message = "Your feedback helps improve our analyses";
-                      break;
-                  }
+                switch (response.data.message) {
+                  case "Feedback already received":
+                    iconColor = "#3498db"; // Primary blue
+                    title = "Already Submitted";
+                    message = "You've already provided feedback for this image";
+                    break;
+                  case "Feedback updated successfully":
+                    iconColor = "#2196F3"; // Material blue
+                    title = "Feedback Updated";
+                    message = "Your feedback has been updated successfully";
+                    break;
+                  case "Feedback submitted successfully":
+                  default:
+                    iconColor = "#4CAF50"; // Green
+                    title = "Thank you!";
+                    message = "Your feedback helps improve our analyses";
+                    break;
+                }
 
-                  feedbackSection.innerHTML = `
+                feedbackSection.innerHTML = `
                     <div class="feedback-success">
                         <div class="icon-container">
                             <svg class="status-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
@@ -1213,92 +1225,91 @@
                         <p class="feedback-message">${message}</p>
                     </div>
                 `;
-                } else {
-                  // Error handling
-                  submitBtn.disabled = false;
-                  submitBtn.innerHTML = "Submit Feedback";
+              } else {
+                // Error handling
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = "Submit Feedback";
 
-                  const errorMsg = document.createElement("p");
-                  errorMsg.className = "feedback-error";
-                  errorMsg.textContent = `Error: ${
-                    response.error || "Failed to submit feedback"
-                  }`;
-                  submitBtn.parentNode.insertBefore(
-                    errorMsg,
-                    submitBtn.nextSibling
-                  );
-                }
+                const errorMsg = document.createElement("p");
+                errorMsg.className = "feedback-error";
+                errorMsg.textContent = `Error: ${
+                  response.error || "Failed to submit feedback"
+                }`;
+                submitBtn.parentNode.insertBefore(
+                  errorMsg,
+                  submitBtn.nextSibling
+                );
               }
-            );
-          } catch (error) {
-            console.error("Error in feedback submission:", error);
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = "Submit Feedback";
+            }
+          );
+        } catch (error) {
+          console.error("Error in feedback submission:", error);
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = "Submit Feedback";
 
-            const errorMsg = document.createElement("p");
-            errorMsg.className = "feedback-error";
-            errorMsg.textContent = "Error: Failed to submit feedback";
-            submitBtn.parentNode.insertBefore(errorMsg, submitBtn.nextSibling);
-          }
-        });
-
-        console.log("Feedback buttons:", {
-          feedbackBtns: popup.querySelectorAll(".feedback-btn"),
-          submitBtn: popup.querySelector(".submit-feedback-btn"),
-          feedbackComment: popup.querySelector("textarea"),
-        });
-
-        textarea.addEventListener("input", () => {
-          const length = textarea.value.length;
-          const remaining = 100 - length;
-          charCounter.textContent = `${length}/100 characters`;
-
-          // Update counter color based on remaining characters
-          charCounter.classList.remove("near-limit", "at-limit");
-          if (length >= 90) {
-            charCounter.classList.add("at-limit");
-          } else if (length >= 75) {
-            charCounter.classList.add("near-limit");
-          }
-        });
-
-        // Add accordion functionality
-        const accordionButton = popup.querySelector(".accordion-button");
-        const accordionContent = popup.querySelector(".accordion-content");
-
-        accordionButton.addEventListener("click", () => {
-          const isOpen = accordionContent.style.display === "block";
-          accordionContent.style.display = isOpen ? "none" : "block";
-          // Update button text based on state
-          accordionButton.querySelector("span").textContent = isOpen
-            ? "View Analysis Details"
-            : "Hide Analysis Details";
-        });
-
-        const selectedModel = popup.querySelector(".model-result.selected");
-        if (selectedModel) {
-          selectedModel.addEventListener("mousemove", (e) => {
-            const tooltip = selectedModel;
-            const x = e.clientX + 15; // Offset from cursor X
-            const y = e.clientY + 15; // Offset from cursor Y
-
-            tooltip.style.setProperty("--tooltip-x", `${x}px`);
-            tooltip.style.setProperty("--tooltip-y", `${y}px`);
-          });
-
-          selectedModel.addEventListener("mouseleave", () => {
-            selectedModel.style.setProperty("--tooltip-visibility", "hidden");
-            selectedModel.style.setProperty("--tooltip-opacity", "0");
-          });
+          const errorMsg = document.createElement("p");
+          errorMsg.className = "feedback-error";
+          errorMsg.textContent = "Error: Failed to submit feedback";
+          submitBtn.parentNode.insertBefore(errorMsg, submitBtn.nextSibling);
         }
-      } else {
-        popup.innerHTML = `
-                <div class="error-container">
-                    <div class="close-x">×</div>
-                    <p class="error">No analysis results available</p>
-                </div>
-            `;
+      });
+
+      console.log("Feedback buttons:", {
+        feedbackBtns: popup.querySelectorAll(".feedback-btn"),
+        submitBtn: popup.querySelector(".submit-feedback-btn"),
+        feedbackComment: popup.querySelector("textarea"),
+      });
+
+      textarea.addEventListener("input", () => {
+        const length = textarea.value.length;
+        const remaining = 100 - length;
+        charCounter.textContent = `${length}/100 characters`;
+
+        // Update counter color based on remaining characters
+        charCounter.classList.remove("near-limit", "at-limit");
+        if (length >= 90) {
+          charCounter.classList.add("at-limit");
+        } else if (length >= 75) {
+          charCounter.classList.add("near-limit");
+        }
+      });
+
+      // Add accordion functionality
+      const accordionButton = popup.querySelector(".accordion-button");
+      const accordionContent = popup.querySelector(".accordion-content");
+
+      accordionButton.addEventListener("click", () => {
+        const isOpen = accordionContent.style.display === "block";
+        accordionContent.style.display = isOpen ? "none" : "block";
+        // Update button text based on state
+        accordionButton.querySelector("span").textContent = isOpen
+          ? "View Analysis Details"
+          : "Hide Analysis Details";
+      });
+
+      const selectedModel = popup.querySelector(".model-result.selected");
+      if (selectedModel) {
+        selectedModel.addEventListener("mousemove", (e) => {
+          const tooltip = selectedModel;
+          const x = e.clientX + 15; // Offset from cursor X
+          const y = e.clientY + 15; // Offset from cursor Y
+
+          tooltip.style.setProperty("--tooltip-x", `${x}px`);
+          tooltip.style.setProperty("--tooltip-y", `${y}px`);
+        });
+
+        selectedModel.addEventListener("mouseleave", () => {
+          selectedModel.style.setProperty("--tooltip-visibility", "hidden");
+          selectedModel.style.setProperty("--tooltip-opacity", "0");
+        });
       }
+    } else {
+      popup.innerHTML = `
+        <div class="error-container">
+          <div class="close-x">×</div>
+          <p class="error">No analysis results available</p>
+        </div>
+      `;
     }
 
     // Ensure the overlay ID is maintained
