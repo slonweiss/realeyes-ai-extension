@@ -832,7 +832,12 @@
       }
 
       const probabilityText = inferenceUnavailable
-        ? `<span style="font-size: 14px; white-space: normal; text-align: center;">Inference endpoints down</span>`
+        ? `<span style="font-size: 14px; text-align: center; line-height: 1.4; white-space: pre-line; cursor: help; display: block;" 
+            title="Our inference endpoints are currently down due to lack of funding. If you're interested in funding our project, please email us at contact@realeyes.ai!">
+            Inference
+            endpoints
+            down
+          </span>`
         : `${probability}%
            <div class="probability-label" style="
              font-size: 12px;
