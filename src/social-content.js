@@ -798,9 +798,11 @@
       const standardAnalysis = results.sageMakerAnalysis || { probability: 0 };
       const ufdAnalysis = results.sageMakerAnalysisUFD || { probability: 0 };
 
-      // Check if both analyses returned 0 probability
-      const inferenceEndpointsDown =
-        standardAnalysis.probability === 0 && ufdAnalysis.probability === 0;
+      // Check if both analyses returned null/0 probability
+      const inferenceUnavailable =
+        (!standardAnalysis.probability && !ufdAnalysis.probability) || // handles 0 case
+        (standardAnalysis.probability === null &&
+          ufdAnalysis.probability === null); // handles null case
 
       // Use the higher probability model
       const analysis =
@@ -808,13 +810,15 @@
           ? standardAnalysis
           : ufdAnalysis;
 
-      const probability = (analysis.probability * 100).toFixed(1);
+      const probability = analysis.probability
+        ? (analysis.probability * 100).toFixed(1)
+        : 0;
 
       // Determine color and text based on probability or endpoint status
       let confidenceColor = "#666"; // Default gray for unavailable
       let titleText = "This content could not be analyzed.";
 
-      if (!inferenceEndpointsDown) {
+      if (!inferenceUnavailable) {
         if (probability < 10) {
           confidenceColor = "#28a745";
           titleText = "This content is likely real.";
@@ -827,7 +831,7 @@
         }
       }
 
-      const probabilityText = inferenceEndpointsDown
+      const probabilityText = inferenceUnavailable
         ? `<span style="font-size: 14px; white-space: normal; text-align: center;">Inference endpoints down</span>`
         : `${probability}%
            <div class="probability-label" style="
@@ -860,9 +864,7 @@
               stroke-linecap="round"
               stroke-dasharray="439.82"
               stroke-dashoffset="${
-                inferenceEndpointsDown
-                  ? 439.82
-                  : 439.82 * (1 - probability / 100)
+                inferenceUnavailable ? 439.82 : 439.82 * (1 - probability / 100)
               }"
               transform="rotate(-90 75 75)"
               style="transition: stroke-dashoffset 1s"
@@ -870,8 +872,17 @@
           </svg>
           <div class="probability-text">
             <div class="probability-value" style="color: ${confidenceColor}">
-              ${probabilityText}
+              ${
+                inferenceUnavailable
+                  ? `<span style="font-size: 14px; white-space: normal; text-align: center;">Inference endpoints down</span>`
+                  : `${probability}%`
+              }
             </div>
+            <div class="probability-label" style="
+              font-size: 12px;
+              color: #333;
+              margin-top: 10px;
+            ">Deepfake Probability</div>
           </div>
         </div>
 
