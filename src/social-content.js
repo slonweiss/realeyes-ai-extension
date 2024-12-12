@@ -832,11 +832,14 @@
       }
 
       const probabilityText = inferenceUnavailable
-        ? `<span style="font-size: 14px; text-align: center; line-height: 1.4; white-space: pre-line; cursor: help; display: block;" 
-            title="Our inference endpoints are currently down due to lack of funding. If you're interested in funding our project, please email us at contact@realeyes.ai!">
-            Inference
-            endpoints
-            down
+        ? `<span style="font-size: 14px; text-align: center; line-height: 1.4; white-space: pre-line; cursor: help; display: block; position: relative;" 
+            class="inference-tooltip"
+            data-tooltip="Due to limited funding, our analysis services are currently offline. This project started at UC Berkeley to combat the growing threat of deepfakes.
+We're actively seeking supporters to help us continue this vital work. If you or your organization would like to contribute to advancing this technology, please reach out at contact@realeyes.ai.">
+Inference
+            Endpoints
+            Temporarily
+            Unavailable
           </span>`
         : `${probability}%
            <div class="probability-label" style="
@@ -1691,7 +1694,35 @@
   setupExtension();
 
   // Add CSS rules
-  const cssRules = ``;
+  const cssRules = `
+    .inference-tooltip::before {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: normal;
+      max-width: 400px;
+      width: max-content;
+      min-width: 350px;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 2147483647;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .inference-tooltip:hover::before {
+      visibility: visible;
+      opacity: 1;
+    }
+  `;
 
   const style = document.createElement("style");
   style.innerHTML = cssRules;
