@@ -872,17 +872,8 @@
           </svg>
           <div class="probability-text">
             <div class="probability-value" style="color: ${confidenceColor}">
-              ${
-                inferenceUnavailable
-                  ? `<span style="font-size: 14px; white-space: normal; text-align: center;">Inference endpoints down</span>`
-                  : `${probability}%`
-              }
+              ${probabilityText}
             </div>
-            <div class="probability-label" style="
-              font-size: 12px;
-              color: #333;
-              margin-top: 10px;
-            ">Deepfake Probability</div>
           </div>
         </div>
 
